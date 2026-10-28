@@ -57,7 +57,7 @@ export const Header: React.FC<HeaderProps> = ({
                   </span>
                 </div>
                 <p className="text-[10px] sm:text-xs text-slate-500 font-medium leading-none mt-0.5">
-                  Gudang & Kantor
+                  Subbagian TURT Kanwil DJPb Riau
                 </p>
               </div>
             </div>

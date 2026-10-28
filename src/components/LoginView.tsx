@@ -8,18 +8,14 @@ import {
   UserCheck,
   Eye,
   EyeOff,
-  LogIn,
   AlertCircle,
   CheckCircle2,
   Building2,
-  FileText,
-  PackageMinus,
-  Sparkles,
   Database,
 } from 'lucide-react';
 
 export const LoginView: React.FC = () => {
-  const { login, users, isFirebaseConnected, checkFirebaseConnection } = useInventory();
+  const { login, isFirebaseConnected, checkFirebaseConnection } = useInventory();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -74,12 +70,6 @@ export const LoginView: React.FC = () => {
         setSuccessMessage(res.message);
       }
     }, 250);
-  };
-
-  const handleSelectDemoAccount = (accUsername: string, accPassword = 'admin123') => {
-    setUsername(accUsername);
-    setPassword(accPassword);
-    setErrorMessage(null);
   };
 
   return (
@@ -150,9 +140,9 @@ export const LoginView: React.FC = () => {
           </div>
 
           {/* Footer note */}
-          <div className="pt-6 border-t border-white/10 text-[11px] text-blue-200/70 flex items-center justify-between mt-6">
+          <div className="pt-6 border-t border-white/10 text-[11px] text-blue-200/80 flex items-center justify-between mt-6">
             <span>Versi Produksi v2.4</span>
-            <span>Subbag Tata Usaha</span>
+            <span className="font-semibold">Subbagian TURT Kanwil DJPb Riau</span>
           </div>
         </div>
 
@@ -263,7 +253,7 @@ export const LoginView: React.FC = () => {
               </div>
               <p className="text-xs text-slate-600 leading-relaxed">
                 Penambahan akun pengguna dan reset kata sandi dikelola secara terpusat oleh{' '}
-                <strong className="font-semibold text-slate-800">Administrator Bagian Umum</strong>.
+                <strong className="font-semibold text-slate-800">Administrator Subbagian TURT Kanwil DJPb Riau</strong>.
               </p>
             </div>
 
@@ -293,112 +283,15 @@ export const LoginView: React.FC = () => {
               </p>
 
               <div className="pt-2.5 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
-                <span className="font-mono text-slate-400">Sistem Otentikasi Terpusat</span>
+                <span className="font-semibold text-slate-600">Subbagian TURT</span>
                 <span className="font-bold text-slate-800">Kanwil DJPb Riau</span>
-              </div>
-            </div>
-
-            {/* Quick Demo Switcher Pills */}
-            <div className="mt-6 pt-5 border-t border-slate-200">
-              <div className="flex items-center justify-between mb-2.5">
-                <p className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Pilih Cepat Akun Demo (1-Klik)</span>
-                </p>
-                <span className="text-[10px] text-slate-400">Klik kartu untuk mengisi</span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {/* Admin 1 */}
-                <button
-                  type="button"
-                  onClick={() => handleSelectDemoAccount('admin', 'admin123')}
-                  className={`p-2.5 text-left rounded-xl border transition-all text-xs flex items-center gap-2.5 ${
-                    username === 'admin'
-                      ? 'border-blue-500 bg-blue-50/70 shadow-xs'
-                      : 'border-slate-200 hover:border-slate-300 bg-white'
-                  }`}
-                >
-                  <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0">
-                    <Shield className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-bold text-slate-900 truncate text-[11px]">Ahmad Fauzi, S.E.</p>
-                    <p className="text-[10px] text-blue-700 font-semibold truncate">
-                      ADMIN • Full Akses
-                    </p>
-                  </div>
-                </button>
-
-                {/* Admin 2 */}
-                <button
-                  type="button"
-                  onClick={() => handleSelectDemoAccount('rina.admin', 'admin123')}
-                  className={`p-2.5 text-left rounded-xl border transition-all text-xs flex items-center gap-2.5 ${
-                    username === 'rina.admin'
-                      ? 'border-indigo-500 bg-indigo-50/70 shadow-xs'
-                      : 'border-slate-200 hover:border-slate-300 bg-white'
-                  }`}
-                >
-                  <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0">
-                    <Shield className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-bold text-slate-900 truncate text-[11px]">Rina Anggraini, S.Kom.</p>
-                    <p className="text-[10px] text-indigo-700 font-semibold truncate">
-                      ADMIN • Logistik
-                    </p>
-                  </div>
-                </button>
-
-                {/* PPNPN 1 */}
-                <button
-                  type="button"
-                  onClick={() => handleSelectDemoAccount('ppnpn', 'ppnpn123')}
-                  className={`p-2.5 text-left rounded-xl border transition-all text-xs flex items-center gap-2.5 ${
-                    username === 'ppnpn'
-                      ? 'border-emerald-500 bg-emerald-50/70 shadow-xs'
-                      : 'border-slate-200 hover:border-slate-300 bg-white'
-                  }`}
-                >
-                  <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
-                    <PackageMinus className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-bold text-slate-900 truncate text-[11px]">Bambang Irawan</p>
-                    <p className="text-[10px] text-emerald-700 font-semibold truncate">
-                      PPNPN • Catat Keluar
-                    </p>
-                  </div>
-                </button>
-
-                {/* PPNPN 2 */}
-                <button
-                  type="button"
-                  onClick={() => handleSelectDemoAccount('siti.ppnpn', 'ppnpn123')}
-                  className={`p-2.5 text-left rounded-xl border transition-all text-xs flex items-center gap-2.5 ${
-                    username === 'siti.ppnpn'
-                      ? 'border-amber-500 bg-amber-50/70 shadow-xs'
-                      : 'border-slate-200 hover:border-slate-300 bg-white'
-                  }`}
-                >
-                  <div className="w-7 h-7 rounded-lg bg-amber-600 text-white flex items-center justify-center shrink-0">
-                    <UserCheck className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-bold text-slate-900 truncate text-[11px]">Siti Nurhaliza</p>
-                    <p className="text-[10px] text-amber-700 font-semibold truncate">
-                      PPNPN • Layanan ATK
-                    </p>
-                  </div>
-                </button>
               </div>
             </div>
           </div>
 
           <div className="mt-6 pt-4 text-center">
-            <p className="text-[11px] text-slate-400">
-              Sistem Persediaan Barang Habis Pakai • Subbag Tata Usaha & Rumah Tangga
+            <p className="text-[11px] text-slate-400 font-medium">
+              Sistem Persediaan Barang Habis Pakai • Subbagian TURT Kanwil DJPb Riau
             </p>
           </div>
         </div>

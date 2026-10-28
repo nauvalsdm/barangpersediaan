@@ -59,7 +59,7 @@ export const DashboardView: React.FC = () => {
           <div>
             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 text-blue-100 text-xs font-semibold backdrop-blur-xs mb-2">
               <Boxes className="w-3.5 h-3.5" />
-              Sistem Persediaan Terpadu • Akun {currentUser.role}
+              Subbagian TURT Kanwil DJPb Riau • Akun {currentUser.role}
             </div>
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold tracking-tight">
               Manajemen Barang Persediaan

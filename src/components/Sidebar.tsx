@@ -139,7 +139,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
             <div>
               <p className="font-bold text-slate-900 text-sm leading-tight">InventarisKu</p>
-              <p className="text-[11px] text-slate-500">Menu Navigasi</p>
+              <p className="text-[11px] text-slate-500 truncate">Subbagian TURT Kanwil DJPb Riau</p>
             </div>
           </div>
           <button
@@ -169,13 +169,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
               <div className="min-w-0">
                 <p className="font-bold text-slate-900 truncate leading-tight">{currentUser.name}</p>
-                <span
-                  className={`text-[10px] font-black px-1.5 py-0.2 rounded inline-block mt-0.5 ${
-                    isAdmin ? 'bg-blue-200 text-blue-800' : 'bg-emerald-200 text-emerald-800'
-                  }`}
-                >
-                  {currentUser.role}
-                </span>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span
+                    className={`text-[10px] font-black px-1.5 py-0.2 rounded inline-block ${
+                      isAdmin ? 'bg-blue-200 text-blue-800' : 'bg-emerald-200 text-emerald-800'
+                    }`}
+                  >
+                    {currentUser.role}
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-medium truncate">
+                    Subbagian TURT
+                  </span>
+                </div>
               </div>
             </div>
             {onToggleDesktop && (
@@ -392,7 +397,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
 
         <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
-          <p className="text-[11px] text-slate-500 font-medium">Estimasi Nilai Persediaan</p>
+          <p className="text-[11px] text-slate-500 font-semibold truncate">Subbagian TURT Kanwil DJPb Riau</p>
           <p className="text-sm font-bold text-slate-900 mt-0.5 truncate">
             {formatRupiah(totalValue)}
           </p>

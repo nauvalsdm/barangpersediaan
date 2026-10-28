@@ -65,13 +65,16 @@ export const PrintDocumentModal: React.FC = () => {
           {/* Header Kop Surat */}
           <div className="border-b-2 border-black pb-4 mb-6 text-center">
             <p className="text-xs font-semibold tracking-wider uppercase text-slate-600">
-              SISTEM PENGELOLAAN LOGISTIK & ASET PERSEDIAAN
+              KEMENTERIAN KEUANGAN REPUBLIK INDONESIA • DIREKTORAT JENDERAL PERBENDAHARAAN
             </p>
             <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 uppercase">
-              BAGIAN UMUM & PERLENGKAPAN KANTOR
+              KANTOR WILAYAH DJPb PROVINSI RIAU
             </h1>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Jl. Merdeka No. 45, Gedung Graha Sarana Lt. 2 • Telp: (021) 555-0192 • Email: logistik@instansi.id
+            <p className="text-xs font-bold text-slate-800 uppercase mt-0.5">
+              BAGIAN UMUM • SUBBAGIAN TATA USAHA DAN RUMAH TANGGA (TURT)
+            </p>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Jl. Jenderal Sudirman No. 249, Pekanbaru, Riau 28282 • Telp: (0761) 23846 • djpb.kemenkeu.go.id/kanwil/riau
             </p>
           </div>
 
@@ -187,7 +190,7 @@ export const PrintDocumentModal: React.FC = () => {
                   <p className="font-bold border-t border-black pt-1 inline-block min-w-[140px]">
                     ( Ir. H. Hendra Wijaya, M.M. )
                   </p>
-                  <p className="text-[10px] text-slate-500">Kepala Subbagian Umum</p>
+                  <p className="text-[10px] text-slate-500">Kepala Subbagian TURT Kanwil DJPb Riau</p>
                 </div>
               </div>
             </div>

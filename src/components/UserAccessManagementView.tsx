@@ -87,7 +87,7 @@ export const UserAccessManagementView: React.FC = () => {
     role: 'PPNPN',
     roleTitle: '',
     username: '',
-    department: 'Layanan Operasional & Gudang Persediaan',
+    department: 'Subbagian TURT Kanwil DJPb Riau',
     nip: '',
     status: 'ACTIVE',
     avatarColor: 'bg-emerald-600',

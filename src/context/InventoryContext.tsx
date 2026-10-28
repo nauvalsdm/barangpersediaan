@@ -120,6 +120,7 @@ interface InventoryContextType {
     applyAdjustments: boolean
   ) => void;
   addCategory: (cat: string) => void;
+  deleteCategory: (cat: string) => void;
   resetToDefaultData: () => Promise<{ success: boolean; message: string }>;
   resetItemsToDefault: () => Promise<{ success: boolean; message: string }>;
   clearAllItems: () => Promise<{ success: boolean; message: string }>;

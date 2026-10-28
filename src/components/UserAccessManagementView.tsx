@@ -24,6 +24,8 @@ import {
   Download,
   Database,
   ShieldAlert,
+  Package,
+  Tags,
 } from 'lucide-react';
 import { useInventory } from '../context/InventoryContext';
 import { UserProfile, UserRole } from '../types/inventory';
@@ -39,9 +41,15 @@ export const UserAccessManagementView: React.FC = () => {
     deleteUser,
     resetUsersToDefault,
     resetToDefaultData,
+    resetItemsToDefault,
+    clearAllItems,
+    resetStockInTransactions,
+    resetStockOutTransactions,
     resetTransactions,
     resetFuelLogs,
+    resetFuelLogsToDefault,
     resetOpnames,
+    resetCategoriesToDefault,
     exportJSON,
     isFirebaseConnected,
     setActiveTab,
@@ -1047,175 +1055,312 @@ export const UserAccessManagementView: React.FC = () => {
             </div>
           )}
 
-          {/* Grid of Reset Actions */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Card 1: Reset Seluruh Database */}
-            <div className="bg-white p-5 rounded-2xl border-2 border-rose-200 shadow-xs hover:border-rose-300 transition-all flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center font-bold">
-                    <RotateCcw className="w-5 h-5" />
+          {/* Grid of Reset Actions Aligned with Main Menu */}
+          <div className="space-y-4">
+            <div className="p-3 bg-indigo-50/80 rounded-xl border border-indigo-200 text-xs text-indigo-900 flex items-center gap-2">
+              <ShieldAlert className="w-4 h-4 text-indigo-600 shrink-0" />
+              <span>
+                <strong>Panduan Administrator:</strong> Setiap tombol reset di bawah ini dipetakan langsung dengan pilihan pada <strong>Menu Utama</strong> sistem. Data langsung tersinkronkan ke cloud Firebase Firestore.
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* 1. Menu Katalog Barang */}
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-blue-300 transition-all flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
+                      <Package className="w-5 h-5" />
+                    </div>
+                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-blue-100 text-blue-800">
+                      1. Katalog Barang
+                    </span>
                   </div>
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-rose-100 text-rose-800">
-                    Reset Penuh Pabrik
-                  </span>
+                  <h3 className="font-bold text-slate-900 text-base mb-1.5">Master Data Katalog Barang</h3>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Kelola data master persediaan barang kantor (ATK, pantry, komputer, cetakan).
+                  </p>
                 </div>
-                <h3 className="font-bold text-slate-900 text-base mb-1.5">Reset Seluruh Database ke Data Bawaan</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Mengembalikan seluruh daftar master barang, 9 kendaraan dinas, kategori, log mutasi contoh, dan stok opname ke kondisi awal default.
-                </p>
-                <div className="mt-3 p-2.5 bg-rose-50 rounded-xl border border-rose-100 text-[11px] text-rose-700">
-                  ⚠️ Seluruh data baru yang diinput setelah instalasi akan digantikan dengan data contoh awal.
+
+                <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col gap-2">
+                  <button
+                    disabled={isResetting}
+                    onClick={async () => {
+                      if (window.confirm('⚠️ Reset katalog barang ke 10 barang standar Kanwil DJPb Riau beserta stok awalnya?')) {
+                        setIsResetting(true);
+                        const res = await resetItemsToDefault();
+                        setIsResetting(false);
+                        setResetFeedback({ type: res.success ? 'success' : 'error', message: res.message });
+                        setTimeout(() => setResetFeedback(null), 5000);
+                      }
+                    }}
+                    className="w-full py-2 px-3 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Reset ke 10 Barang Bawaan</span>
+                  </button>
+                  <button
+                    disabled={isResetting}
+                    onClick={async () => {
+                      if (window.confirm('⚠️ Kosongkan seluruh katalog barang persediaan? Anda harus menginput ulang dari awal.')) {
+                        setIsResetting(true);
+                        const res = await clearAllItems();
+                        setIsResetting(false);
+                        setResetFeedback({ type: res.success ? 'success' : 'error', message: res.message });
+                        setTimeout(() => setResetFeedback(null), 5000);
+                      }
+                    }}
+                    className="w-full py-2 px-3 bg-white hover:bg-rose-50 text-rose-700 border border-rose-300 active:scale-[0.99] rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Kosongkan Seluruh Katalog</span>
+                  </button>
                 </div>
               </div>
 
-              <button
-                disabled={isResetting}
-                onClick={async () => {
-                  if (
-                    window.confirm(
-                      '⚠️ PERINGATAN ADMINISTRATOR:\nTindakan ini akan mengembalikan SELURUH database (barang, transaksi, opname, BBM) ke kondisi awal default pabrik.\n\nApakah Anda benar-benar yakin ingin melanjutkan?'
-                    )
-                  ) {
-                    setIsResetting(true);
-                    const res = await resetToDefaultData();
-                    setIsResetting(false);
-                    setResetFeedback({ type: res.success ? 'success' : 'error', message: res.message });
-                    setTimeout(() => setResetFeedback(null), 5000);
-                  }
-                }}
-                className="mt-5 w-full py-2.5 px-4 bg-rose-600 hover:bg-rose-700 active:scale-[0.99] text-white rounded-xl text-xs font-bold inline-flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer disabled:opacity-50"
-              >
-                <RotateCcw className="w-4 h-4" />
-                <span>Reset Seluruh Database</span>
-              </button>
-            </div>
-
-            {/* Card 2: Kosongkan Transaksi Mutasi */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-amber-300 transition-all flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
-                    <ArrowUpDown className="w-5 h-5" />
+              {/* 2. Menu Barang Masuk */}
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-emerald-300 transition-all flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                      <ArrowDownLeft className="w-5 h-5" />
+                    </div>
+                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-800">
+                      2. Barang Masuk
+                    </span>
                   </div>
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-amber-100 text-amber-800">
-                    Buku Baru
-                  </span>
+                  <h3 className="font-bold text-slate-900 text-base mb-1.5">Riwayat Transaksi Barang Masuk</h3>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Hapus catatan pengadaan/penerimaan barang masuk dari pemasok. Master barang tetap utuh.
+                  </p>
                 </div>
-                <h3 className="font-bold text-slate-900 text-base mb-1.5">Kosongkan Riwayat Transaksi Mutasi</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Menghapus seluruh catatan barang masuk dan barang keluar. Cocok saat memulai pembukuan periode tahun anggaran baru. <strong>Master barang tetap aman.</strong>
-                </p>
-                <div className="mt-3 p-2.5 bg-amber-50 rounded-xl border border-amber-100 text-[11px] text-amber-700">
-                  ℹ️ Data katalog barang dan saldo stok terakhir tetap dipertahankan.
+
+                <div className="mt-4 pt-3 border-t border-slate-100">
+                  <button
+                    disabled={isResetting}
+                    onClick={async () => {
+                      if (window.confirm('⚠️ Kosongkan seluruh log mutasi Barang Masuk?')) {
+                        setIsResetting(true);
+                        const res = await resetStockInTransactions();
+                        setIsResetting(false);
+                        setResetFeedback({ type: res.success ? 'success' : 'error', message: res.message });
+                        setTimeout(() => setResetFeedback(null), 5000);
+                      }
+                    }}
+                    className="w-full py-2.5 px-3 bg-emerald-700 hover:bg-emerald-800 active:scale-[0.99] text-white rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Kosongkan Transaksi Barang Masuk</span>
+                  </button>
                 </div>
               </div>
 
-              <button
-                disabled={isResetting}
-                onClick={async () => {
-                  if (
-                    window.confirm(
-                      '⚠️ KOSONGKAN RIWAYAT TRANSAKSI:\nSeluruh log riwayat barang masuk & barang keluar akan dihapus permanen. Master data barang tetap utuh.\n\nLanjutkan?'
-                    )
-                  ) {
-                    setIsResetting(true);
-                    const res = await resetTransactions();
-                    setIsResetting(false);
-                    setResetFeedback({ type: res.success ? 'success' : 'error', message: res.message });
-                    setTimeout(() => setResetFeedback(null), 5000);
-                  }
-                }}
-                className="mt-5 w-full py-2.5 px-4 bg-amber-600 hover:bg-amber-700 active:scale-[0.99] text-white rounded-xl text-xs font-bold inline-flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer disabled:opacity-50"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Kosongkan Riwayat Transaksi</span>
-              </button>
-            </div>
-
-            {/* Card 3: Kosongkan Log Pengisian BBM */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-orange-300 transition-all flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-700 flex items-center justify-center font-bold">
-                    <Fuel className="w-5 h-5" />
+              {/* 3. Menu Barang Keluar */}
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-amber-300 transition-all flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
+                      <ArrowUpRight className="w-5 h-5" />
+                    </div>
+                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-amber-100 text-amber-800">
+                      3. Barang Keluar
+                    </span>
                   </div>
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-orange-100 text-orange-800">
-                    BBM Baru
-                  </span>
+                  <h3 className="font-bold text-slate-900 text-base mb-1.5">Riwayat Transaksi Barang Keluar</h3>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Hapus catatan distribusi dan pengeluaran barang ke unit kerja / pegawai kantor.
+                  </p>
                 </div>
-                <h3 className="font-bold text-slate-900 text-base mb-1.5">Kosongkan Riwayat Pengisian BBM</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Menghapus seluruh rekaman pengisian BBM kendaraan dinas (Rupiah, Liter, Odometer). Daftar 9 kendaraan operasional tetap utuh.
-                </p>
-                <div className="mt-3 p-2.5 bg-orange-50 rounded-xl border border-orange-100 text-[11px] text-orange-700">
-                  ℹ️ Rekaman BBM sebelumnya tidak dapat dipulihkan kecuali dari file backup JSON.
+
+                <div className="mt-4 pt-3 border-t border-slate-100">
+                  <button
+                    disabled={isResetting}
+                    onClick={async () => {
+                      if (window.confirm('⚠️ Kosongkan seluruh log mutasi Barang Keluar?')) {
+                        setIsResetting(true);
+                        const res = await resetStockOutTransactions();
+                        setIsResetting(false);
+                        setResetFeedback({ type: res.success ? 'success' : 'error', message: res.message });
+                        setTimeout(() => setResetFeedback(null), 5000);
+                      }
+                    }}
+                    className="w-full py-2.5 px-3 bg-amber-600 hover:bg-amber-700 active:scale-[0.99] text-white rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Kosongkan Transaksi Barang Keluar</span>
+                  </button>
                 </div>
               </div>
 
-              <button
-                disabled={isResetting}
-                onClick={async () => {
-                  if (
-                    window.confirm(
-                      '⚠️ KOSONGKAN LOG BBM:\nSeluruh log riwayat pengisian BBM kendaraan dinas akan dihapus permanen.\n\nLanjutkan?'
-                    )
-                  ) {
-                    setIsResetting(true);
-                    const res = await resetFuelLogs();
-                    setIsResetting(false);
-                    setResetFeedback({ type: res.success ? 'success' : 'error', message: res.message });
-                    setTimeout(() => setResetFeedback(null), 5000);
-                  }
-                }}
-                className="mt-5 w-full py-2.5 px-4 bg-orange-600 hover:bg-orange-700 active:scale-[0.99] text-white rounded-xl text-xs font-bold inline-flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer disabled:opacity-50"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Kosongkan Log Pengisian BBM</span>
-              </button>
-            </div>
-
-            {/* Card 4: Kosongkan Stock Opname */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-indigo-300 transition-all flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
-                    <ClipboardList className="w-5 h-5" />
+              {/* 4. Menu Pengisian BBM */}
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-orange-300 transition-all flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-700 flex items-center justify-center font-bold">
+                      <Fuel className="w-5 h-5" />
+                    </div>
+                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-orange-100 text-orange-800">
+                      4. Pengisian BBM
+                    </span>
                   </div>
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-indigo-100 text-indigo-800">
-                    Opname Baru
-                  </span>
+                  <h3 className="font-bold text-slate-900 text-base mb-1.5">Riwayat Catatan BBM Kendaraan</h3>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Hapus rekaman pengisian BBM dan odometer dari 9 kendaraan dinas operasional kantor.
+                  </p>
                 </div>
-                <h3 className="font-bold text-slate-900 text-base mb-1.5">Kosongkan Riwayat Stock Opname</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Menghapus sesi rekonsiliasi opname fisik terdahulu beserta draf audit selisih stok barang kantor.
-                </p>
-                <div className="mt-3 p-2.5 bg-indigo-50 rounded-xl border border-indigo-100 text-[11px] text-indigo-700">
-                  ℹ️ Sesi opname baru dapat dimulai kembali dari menu Stock Opname kapan saja.
+
+                <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col gap-2">
+                  <button
+                    disabled={isResetting}
+                    onClick={async () => {
+                      if (window.confirm('⚠️ Kosongkan seluruh log riwayat pengisian BBM kendaraan dinas?')) {
+                        setIsResetting(true);
+                        const res = await resetFuelLogs();
+                        setIsResetting(false);
+                        setResetFeedback({ type: res.success ? 'success' : 'error', message: res.message });
+                        setTimeout(() => setResetFeedback(null), 5000);
+                      }
+                    }}
+                    className="w-full py-2 px-3 bg-orange-600 hover:bg-orange-700 active:scale-[0.99] text-white rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Kosongkan Log Pengisian BBM</span>
+                  </button>
+                  <button
+                    disabled={isResetting}
+                    onClick={async () => {
+                      if (window.confirm('⚠️ Kembalikan catatan log BBM ke data contoh bawaan?')) {
+                        setIsResetting(true);
+                        const res = await resetFuelLogsToDefault();
+                        setIsResetting(false);
+                        setResetFeedback({ type: res.success ? 'success' : 'error', message: res.message });
+                        setTimeout(() => setResetFeedback(null), 5000);
+                      }
+                    }}
+                    className="w-full py-2 px-3 bg-white hover:bg-orange-50 text-orange-800 border border-orange-300 active:scale-[0.99] rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Reset ke Log BBM Contoh</span>
+                  </button>
                 </div>
               </div>
 
-              <button
-                disabled={isResetting}
-                onClick={async () => {
-                  if (
-                    window.confirm(
-                      '⚠️ KOSONGKAN STOCK OPNAME:\nSeluruh sesi dan draf rekonsiliasi stock opname akan dikosongkan permanen.\n\nLanjutkan?'
-                    )
-                  ) {
-                    setIsResetting(true);
-                    const res = await resetOpnames();
-                    setIsResetting(false);
-                    setResetFeedback({ type: res.success ? 'success' : 'error', message: res.message });
-                    setTimeout(() => setResetFeedback(null), 5000);
-                  }
-                }}
-                className="mt-5 w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white rounded-xl text-xs font-bold inline-flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer disabled:opacity-50"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Kosongkan Riwayat Stock Opname</span>
-              </button>
-            </div>
+              {/* 5. Menu Stock Opname */}
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-indigo-300 transition-all flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
+                      <ClipboardList className="w-5 h-5" />
+                    </div>
+                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-indigo-100 text-indigo-800">
+                      5. Stock Opname
+                    </span>
+                  </div>
+                  <h3 className="font-bold text-slate-900 text-base mb-1.5">Sesi & Draf Rekonsiliasi Opname</h3>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Hapus seluruh sesi perhitungan fisik barang persediaan dan riwayat audit selisih stok.
+                  </p>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-slate-100">
+                  <button
+                    disabled={isResetting}
+                    onClick={async () => {
+                      if (window.confirm('⚠️ Kosongkan seluruh riwayat dan draf sesi stock opname?')) {
+                        setIsResetting(true);
+                        const res = await resetOpnames();
+                        setIsResetting(false);
+                        setResetFeedback({ type: res.success ? 'success' : 'error', message: res.message });
+                        setTimeout(() => setResetFeedback(null), 5000);
+                      }
+                    }}
+                    className="w-full py-2.5 px-3 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Kosongkan Riwayat Stock Opname</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* 6. Master Kategori Persediaan */}
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-purple-300 transition-all flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
+                      <Tags className="w-5 h-5" />
+                    </div>
+                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-purple-100 text-purple-800">
+                      6. Master Kategori
+                    </span>
+                  </div>
+                  <h3 className="font-bold text-slate-900 text-base mb-1.5">Kategori Barang Persediaan</h3>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Kembalikan daftar kategori barang persediaan ke standar bawaan instansi (ATK, Kertas, Komputer, Pantry, Cetakan).
+                  </p>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-slate-100">
+                  <button
+                    disabled={isResetting}
+                    onClick={async () => {
+                      if (window.confirm('⚠️ Kembalikan daftar kategori barang ke standar awal sistem?')) {
+                        setIsResetting(true);
+                        const res = await resetCategoriesToDefault();
+                        setIsResetting(false);
+                        setResetFeedback({ type: res.success ? 'success' : 'error', message: res.message });
+                        setTimeout(() => setResetFeedback(null), 5000);
+                      }
+                    }}
+                    className="w-full py-2.5 px-3 bg-purple-600 hover:bg-purple-700 active:scale-[0.99] text-white rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    <span>Reset Kategori ke Standar Bawaan</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Card 7: Reset Seluruh Database Menu Utama */}
+              <div className="bg-white p-5 rounded-2xl border-2 border-rose-300 shadow-xs hover:border-rose-400 transition-all flex flex-col justify-between md:col-span-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center font-bold shrink-0">
+                      <RotateCcw className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-slate-900 text-base">Reset Total Seluruh Menu Utama (Pabrik)</h3>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800">
+                          Reset Penuh
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed max-w-2xl mt-0.5">
+                        Mengembalikan <strong>seluruh data modul operasional</strong> (Katalog Barang, Barang Masuk & Keluar, Pengisian BBM, Stock Opname, serta Kategori) secara serentak ke data default awal Kanwil DJPb Riau.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    disabled={isResetting}
+                    onClick={async () => {
+                      if (
+                        window.confirm(
+                          '⚠️ PERINGATAN SISTEM ADMINISTRATOR:\nTindakan ini akan mengembalikan SELURUH database (barang, transaksi masuk/keluar, BBM, opname, kategori) ke kondisi awal default pabrik.\n\nApakah Anda benar-benar yakin ingin melanjutkan?'
+                        )
+                      ) {
+                        setIsResetting(true);
+                        const res = await resetToDefaultData();
+                        setIsResetting(false);
+                        setResetFeedback({ type: res.success ? 'success' : 'error', message: res.message });
+                        setTimeout(() => setResetFeedback(null), 5000);
+                      }
+                    }}
+                    className="shrink-0 py-2.5 px-4 bg-rose-600 hover:bg-rose-700 active:scale-[0.99] text-white rounded-xl text-xs font-bold inline-flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    <span>Reset Seluruh Modul</span>
+                  </button>
+                </div>
+              </div>
 
             {/* Card 5: Reset Akun Pengguna Bawaan */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-blue-300 transition-all flex flex-col justify-between md:col-span-2">
@@ -1257,7 +1402,8 @@ export const UserAccessManagementView: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+      </div>
+    )}
 
       {/* MODAL: TAMBAH / EDIT PENGGUNA */}
       {isModalOpen && (

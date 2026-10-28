@@ -1,0 +1,173 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidInventoryItem(data) {
+      return data.keys().hasAll(['id', 'sku', 'name', 'category', 'unit', 'stock', 'minStock', 'unitPrice', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'sku', 'name', 'category', 'unit', 'stock', 'minStock', 'unitPrice', 'supplier', 'description', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) &&
+        data.sku is string && data.sku.size() >= 1 && data.sku.size() <= 64 &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 200 &&
+        data.category is string && data.category.size() >= 1 && data.category.size() <= 100 &&
+        data.unit is string && data.unit.size() >= 1 && data.unit.size() <= 50 &&
+        data.stock is number && data.stock >= 0 &&
+        data.minStock is number && data.minStock >= 0 &&
+        data.unitPrice is number && data.unitPrice >= 0 &&
+        (!('supplier' in data) || (data.supplier is string && data.supplier.size() <= 200)) &&
+        (!('description' in data) || (data.description is string && data.description.size() <= 500)) &&
+        data.createdAt is string && data.createdAt.size() <= 64 &&
+        data.updatedAt is string && data.updatedAt.size() <= 64;
+    }
+
+    function isValidStockTransaction(data) {
+      return data.keys().hasAll(['id', 'referenceNo', 'date', 'type', 'itemId', 'itemName', 'itemSku', 'quantity', 'unit', 'unitPrice', 'totalPrice', 'sourceOrDestination', 'recipientOrSignee', 'stockBefore', 'stockAfter', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'referenceNo', 'date', 'type', 'itemId', 'itemName', 'itemSku', 'quantity', 'unit', 'unitPrice', 'totalPrice', 'sourceOrDestination', 'recipientOrSignee', 'notes', 'stockBefore', 'stockAfter', 'createdAt']) &&
+        isValidId(data.id) &&
+        data.referenceNo is string && data.referenceNo.size() >= 1 && data.referenceNo.size() <= 64 &&
+        data.date is string && data.date.size() >= 1 && data.date.size() <= 64 &&
+        data.type is string && data.type.size() <= 20 && data.type in ['MASUK', 'KELUAR', 'PENYESUAIAN'] &&
+        data.itemId is string && data.itemId.size() >= 1 && data.itemId.size() <= 128 &&
+        data.itemName is string && data.itemName.size() >= 1 && data.itemName.size() <= 200 &&
+        data.itemSku is string && data.itemSku.size() >= 1 && data.itemSku.size() <= 64 &&
+        data.quantity is number &&
+        data.unit is string && data.unit.size() >= 1 && data.unit.size() <= 50 &&
+        data.unitPrice is number && data.unitPrice >= 0 &&
+        data.totalPrice is number && data.totalPrice >= 0 &&
+        data.sourceOrDestination is string && data.sourceOrDestination.size() <= 200 &&
+        data.recipientOrSignee is string && data.recipientOrSignee.size() <= 200 &&
+        (!('notes' in data) || (data.notes is string && data.notes.size() <= 500)) &&
+        data.stockBefore is number &&
+        data.stockAfter is number &&
+        data.createdAt is string && data.createdAt.size() <= 64;
+    }
+
+    function isValidOpnameSession(data) {
+      return data.keys().hasAll(['id', 'referenceNo', 'title', 'date', 'officerName', 'status', 'entries', 'totalDiscrepancy', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'referenceNo', 'title', 'date', 'officerName', 'notes', 'status', 'entries', 'totalDiscrepancy', 'createdAt']) &&
+        isValidId(data.id) &&
+        data.referenceNo is string && data.referenceNo.size() >= 1 && data.referenceNo.size() <= 64 &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 200 &&
+        data.date is string && data.date.size() >= 1 && data.date.size() <= 64 &&
+        data.officerName is string && data.officerName.size() >= 1 && data.officerName.size() <= 200 &&
+        (!('notes' in data) || (data.notes is string && data.notes.size() <= 500)) &&
+        data.status is string && data.status.size() <= 20 && data.status in ['DRAFT', 'SELESAI'] &&
+        data.entries is list && data.entries.size() <= 500 && (data.entries.size() == 0 || data.entries[0] is map) &&
+        data.totalDiscrepancy is number &&
+        data.createdAt is string && data.createdAt.size() <= 64;
+    }
+
+    function isValidFuelLogRecord(data) {
+      return data.keys().hasAll(['id', 'referenceNo', 'officerName', 'date', 'vehicleName', 'totalRupiah', 'totalLiters', 'odometerKm', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'referenceNo', 'officerName', 'date', 'vehicleName', 'totalRupiah', 'totalLiters', 'odometerKm', 'notes', 'createdAt']) &&
+        isValidId(data.id) &&
+        data.referenceNo is string && data.referenceNo.size() >= 1 && data.referenceNo.size() <= 64 &&
+        data.officerName is string && data.officerName.size() >= 1 && data.officerName.size() <= 200 &&
+        data.date is string && data.date.size() >= 1 && data.date.size() <= 64 &&
+        data.vehicleName is string && data.vehicleName.size() >= 1 && data.vehicleName.size() <= 100 &&
+        data.totalRupiah is number && data.totalRupiah > 0 &&
+        data.totalLiters is number && data.totalLiters > 0 &&
+        data.odometerKm is number && data.odometerKm >= 0 &&
+        (!('notes' in data) || (data.notes is string && data.notes.size() <= 500)) &&
+        data.createdAt is string && data.createdAt.size() <= 64;
+    }
+
+    function isValidCategoryItem(data) {
+      return data.keys().hasAll(['id', 'name']) &&
+        data.keys().hasOnly(['id', 'name']) &&
+        isValidId(data.id) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 100;
+    }
+
+    function isValidAppUser(data) {
+      return data.keys().hasAll(['id', 'name', 'role', 'roleTitle', 'username', 'department', 'avatarColor', 'status']) &&
+        data.keys().hasOnly(['id', 'name', 'role', 'roleTitle', 'username', 'department', 'avatarColor', 'nip', 'email', 'phone', 'password', 'status', 'createdAt', 'lastLogin']) &&
+        isValidId(data.id) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 200 &&
+        data.role is string && data.role.size() <= 20 && data.role in ['ADMIN', 'PPNPN'] &&
+        data.roleTitle is string && data.roleTitle.size() <= 200 &&
+        data.username is string && data.username.size() >= 1 && data.username.size() <= 100 &&
+        data.department is string && data.department.size() <= 200 &&
+        data.avatarColor is string && data.avatarColor.size() <= 64 &&
+        (!('nip' in data) || (data.nip is string && data.nip.size() <= 64)) &&
+        (!('email' in data) || (data.email is string && data.email.size() <= 150)) &&
+        (!('phone' in data) || (data.phone is string && data.phone.size() <= 50)) &&
+        (!('password' in data) || (data.password is string && data.password.size() <= 100)) &&
+        data.status is string && data.status.size() <= 20 && data.status in ['ACTIVE', 'INACTIVE'] &&
+        (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64)) &&
+        (!('lastLogin' in data) || (data.lastLogin is string && data.lastLogin.size() <= 64));
+    }
+
+    match /test/{docId} {
+      allow get: if isValidId(docId);
+    }
+
+    match /items/{itemId} {
+      allow get: if isValidId(itemId);
+      allow list: if true;
+      allow create: if isValidId(itemId) && isValidInventoryItem(incoming()) && incoming().id == itemId;
+      allow update: if isValidInventoryItem(incoming()) && isValidId(itemId) && incoming().id == existing().id && incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['sku', 'name', 'category', 'unit', 'stock', 'minStock', 'unitPrice', 'supplier', 'description', 'updatedAt']);
+      allow delete: if isValidId(itemId);
+    }
+
+    match /transactions/{transactionId} {
+      allow get: if isValidId(transactionId);
+      allow list: if true;
+      allow create: if isValidId(transactionId) && isValidStockTransaction(incoming()) && incoming().id == transactionId;
+      allow update: if isValidStockTransaction(incoming()) && isValidId(transactionId) && incoming().id == existing().id && incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['notes', 'sourceOrDestination', 'recipientOrSignee']);
+      allow delete: if isValidId(transactionId);
+    }
+
+    match /opnames/{opnameId} {
+      allow get: if isValidId(opnameId);
+      allow list: if true;
+      allow create: if isValidId(opnameId) && isValidOpnameSession(incoming()) && incoming().id == opnameId;
+      allow update: if isValidOpnameSession(incoming()) && isValidId(opnameId) && incoming().id == existing().id && incoming().createdAt == existing().createdAt &&
+        existing().status != 'SELESAI' && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'date', 'officerName', 'notes', 'status', 'entries', 'totalDiscrepancy']);
+      allow delete: if isValidId(opnameId);
+    }
+
+    match /fuelLogs/{fuelLogId} {
+      allow get: if isValidId(fuelLogId);
+      allow list: if true;
+      allow create: if isValidId(fuelLogId) && isValidFuelLogRecord(incoming()) && incoming().id == fuelLogId;
+      allow update: if isValidFuelLogRecord(incoming()) && isValidId(fuelLogId) && incoming().id == existing().id && incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['officerName', 'date', 'vehicleName', 'totalRupiah', 'totalLiters', 'odometerKm', 'notes']);
+      allow delete: if isValidId(fuelLogId);
+    }
+
+    match /categories/{categoryId} {
+      allow get: if isValidId(categoryId);
+      allow list: if true;
+      allow create: if isValidId(categoryId) && isValidCategoryItem(incoming()) && incoming().id == categoryId;
+      allow update: if isValidCategoryItem(incoming()) && isValidId(categoryId) && incoming().id == existing().id &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['name']);
+      allow delete: if isValidId(categoryId);
+    }
+
+    match /appUsers/{userId} {
+      allow get: if isValidId(userId);
+      allow list: if true;
+      allow create: if isValidId(userId) && isValidAppUser(incoming()) && incoming().id == userId;
+      allow update: if isValidAppUser(incoming()) && isValidId(userId) && incoming().id == existing().id &&
+        incoming().role == existing().role && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'roleTitle', 'username', 'department', 'avatarColor', 'nip', 'email', 'phone', 'password', 'status', 'lastLogin']);
+      allow delete: if isValidId(userId);
+    }
+  }
+}

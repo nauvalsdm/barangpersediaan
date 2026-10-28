@@ -1,0 +1,12 @@
+{
+  "projectId": "barangpersediaan",
+  "appId": "1:474021468913:web:19d5a044376677689de750",
+  "apiKey": "AIzaSyCBd2lfWhleVnsGCCuHA7EzSbJf9eHV1dQ",
+  "authDomain": "barangpersediaan.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-inventoryflow-debc26cc-e3e3-4a76-aa1f-726cb1d7b420",
+  "storageBucket": "barangpersediaan.firebasestorage.app",
+  "messagingSenderId": "474021468913",
+  "measurementId": "",
+  "oAuthClientId": "474021468913-jceab4e2bhquiflrg6ncr783s82oakss.apps.googleusercontent.com",
+  "recaptchaSiteKey": ""
+}

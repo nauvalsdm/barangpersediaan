@@ -1,0 +1,6 @@
+{
+  "name": "InventarisKu - Sistem Barang Persediaan",
+  "description": "Aplikasi manajemen barang persediaan kantor dan gudang modern, responsif untuk perangkat mobile dan desktop dengan pencatatan masuk/keluar, stock opname, dan barcode scan.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,136 @@
+{
+  "entities": {
+    "InventoryItem": {
+      "title": "InventoryItem",
+      "description": "Master data barang persediaan gudang dan kantor",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "sku": { "type": "string", "maxLength": 64 },
+        "name": { "type": "string", "maxLength": 200 },
+        "category": { "type": "string", "maxLength": 100 },
+        "unit": { "type": "string", "maxLength": 50 },
+        "stock": { "type": "number" },
+        "minStock": { "type": "number" },
+        "unitPrice": { "type": "number" },
+        "supplier": { "type": "string", "maxLength": 200 },
+        "description": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "sku", "name", "category", "unit", "stock", "minStock", "unitPrice", "createdAt", "updatedAt"]
+    },
+    "StockTransaction": {
+      "title": "StockTransaction",
+      "description": "Riwayat mutasi barang masuk, barang keluar, dan penyesuaian stok",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "referenceNo": { "type": "string", "maxLength": 64 },
+        "date": { "type": "string", "maxLength": 64 },
+        "type": { "type": "string", "enum": ["MASUK", "KELUAR", "PENYESUAIAN"] },
+        "itemId": { "type": "string", "maxLength": 128 },
+        "itemName": { "type": "string", "maxLength": 200 },
+        "itemSku": { "type": "string", "maxLength": 64 },
+        "quantity": { "type": "number" },
+        "unit": { "type": "string", "maxLength": 50 },
+        "unitPrice": { "type": "number" },
+        "totalPrice": { "type": "number" },
+        "sourceOrDestination": { "type": "string", "maxLength": 200 },
+        "recipientOrSignee": { "type": "string", "maxLength": 200 },
+        "notes": { "type": "string", "maxLength": 500 },
+        "stockBefore": { "type": "number" },
+        "stockAfter": { "type": "number" },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "referenceNo", "date", "type", "itemId", "itemName", "itemSku", "quantity", "unit", "unitPrice", "totalPrice", "sourceOrDestination", "recipientOrSignee", "stockBefore", "stockAfter", "createdAt"]
+    },
+    "OpnameSession": {
+      "title": "OpnameSession",
+      "description": "Sesi pemeriksaan fisik stock opname persediaan",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "referenceNo": { "type": "string", "maxLength": 64 },
+        "title": { "type": "string", "maxLength": 200 },
+        "date": { "type": "string", "maxLength": 64 },
+        "officerName": { "type": "string", "maxLength": 200 },
+        "notes": { "type": "string", "maxLength": 500 },
+        "status": { "type": "string", "enum": ["DRAFT", "SELESAI"] },
+        "totalDiscrepancy": { "type": "number" },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "referenceNo", "title", "date", "officerName", "status", "totalDiscrepancy", "createdAt"]
+    },
+    "FuelLogRecord": {
+      "title": "FuelLogRecord",
+      "description": "Catatan pengisian BBM kendaraan operasional",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "referenceNo": { "type": "string", "maxLength": 64 },
+        "officerName": { "type": "string", "maxLength": 200 },
+        "date": { "type": "string", "maxLength": 64 },
+        "vehicleName": { "type": "string", "maxLength": 100 },
+        "totalRupiah": { "type": "number" },
+        "totalLiters": { "type": "number" },
+        "odometerKm": { "type": "number" },
+        "notes": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "referenceNo", "officerName", "date", "vehicleName", "totalRupiah", "totalLiters", "odometerKm", "createdAt"]
+    },
+    "CategoryItem": {
+      "title": "CategoryItem",
+      "description": "Master kategori barang persediaan",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 100 }
+      },
+      "required": ["id", "name"]
+    },
+    "AppUser": {
+      "title": "AppUser",
+      "description": "Profil pengguna sistem persediaan",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "maxLength": 200 },
+        "role": { "type": "string", "enum": ["ADMIN", "PPNPN"] },
+        "roleTitle": { "type": "string", "maxLength": 200 },
+        "username": { "type": "string", "maxLength": 100 },
+        "department": { "type": "string", "maxLength": 200 },
+        "avatarColor": { "type": "string", "maxLength": 64 },
+        "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE"] }
+      },
+      "required": ["id", "name", "role", "roleTitle", "username", "department", "avatarColor", "status"]
+    }
+  },
+  "firestore": {
+    "/items/{itemId}": {
+      "schema": { "$ref": "#/entities/InventoryItem" },
+      "description": "Katalog master barang persediaan"
+    },
+    "/transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/StockTransaction" },
+      "description": "Riwayat transaksi mutasi barang masuk dan keluar"
+    },
+    "/opnames/{opnameId}": {
+      "schema": { "$ref": "#/entities/OpnameSession" },
+      "description": "Sesi stock opname persediaan"
+    },
+    "/fuelLogs/{fuelLogId}": {
+      "schema": { "$ref": "#/entities/FuelLogRecord" },
+      "description": "Catatan pengisian BBM kendaraan dinas"
+    },
+    "/categories/{categoryId}": {
+      "schema": { "$ref": "#/entities/CategoryItem" },
+      "description": "Daftar kategori barang"
+    },
+    "/appUsers/{userId}": {
+      "schema": { "$ref": "#/entities/AppUser" },
+      "description": "Data akun petugas persediaan"
+    }
+  }
+}

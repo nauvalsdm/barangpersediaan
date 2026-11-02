@@ -4,7 +4,6 @@ import {
   Package,
   QrCode,
   MapPin,
-  Building2,
   Calendar,
   ArrowDownLeft,
   ArrowUpRight,
@@ -16,7 +15,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useInventory } from '../context/InventoryContext';
-import { formatRupiah, formatDateTimeIndo, generateBarcodeLines } from '../utils/formatters';
+import { formatDateTimeIndo, generateBarcodeLines } from '../utils/formatters';
 
 export const ItemDetailModal: React.FC = () => {
   const {
@@ -87,51 +86,53 @@ export const ItemDetailModal: React.FC = () => {
                 {/* Body */}
                 <div className="p-4 sm:p-6 space-y-6 max-h-[75vh] overflow-y-auto">
                   {/* Key Metrics Strip */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-center">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-center">
                       <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
                         Stok Fisik
                       </span>
                       <span
-                        className={`text-xl sm:text-2xl font-black mt-1 block ${
-                          isOut ? 'text-rose-600' : isLow ? 'text-amber-600' : 'text-slate-900'
+                        className={`text-2xl sm:text-3xl font-black mt-1.5 block ${
+                          isOut ? 'text-rose-600' : 'text-slate-900'
                         }`}
                       >
                         {item.stock} {item.unit}
                       </span>
-                      <span className="text-[10px] text-slate-400">
-                        {isOut ? 'Habis Total' : isLow ? 'Perlu Restock' : 'Stok Aman'}
+                      <span className="text-xs text-slate-400 mt-0.5 block">
+                        {isOut ? 'Habis Total (0 Unit)' : 'Tersedia di Gudang / Ruang Logistik'}
                       </span>
                     </div>
 
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-center">
-                      <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
-                        Safety Stock
+                    <div
+                      className={`p-4 rounded-xl border text-center ${
+                        isOut
+                          ? 'bg-rose-50/70 border-rose-200'
+                          : 'bg-emerald-50/70 border-emerald-200'
+                      }`}
+                    >
+                      <span
+                        className={`text-[11px] font-bold uppercase tracking-wider block ${
+                          isOut ? 'text-rose-700' : 'text-emerald-700'
+                        }`}
+                      >
+                        Status Persediaan
                       </span>
-                      <span className="text-xl sm:text-2xl font-extrabold text-slate-800 mt-1 block">
-                        {item.minStock} {item.unit}
+                      <span
+                        className={`text-lg sm:text-xl font-black mt-1.5 block ${
+                          isOut ? 'text-rose-700' : 'text-emerald-700'
+                        }`}
+                      >
+                        {isOut ? '⛔ Stok Habis' : '✅ Stok Tersedia'}
                       </span>
-                      <span className="text-[10px] text-slate-400">Batas Minimum</span>
-                    </div>
-
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-center">
-                      <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
-                        Harga Satuan
+                      <span
+                        className={`text-xs block mt-0.5 ${
+                          isOut ? 'text-rose-600' : 'text-emerald-600'
+                        }`}
+                      >
+                        {isOut
+                          ? 'Persediaan kosong, segera lakukan pengadaan'
+                          : 'Barang siap digunakan untuk operasional kantor'}
                       </span>
-                      <span className="text-sm sm:text-base font-extrabold text-slate-800 mt-1 block truncate">
-                        {formatRupiah(item.unitPrice)}
-                      </span>
-                      <span className="text-[10px] text-slate-400">Per {item.unit}</span>
-                    </div>
-
-                    <div className="p-3 bg-emerald-50/70 rounded-xl border border-emerald-200 text-center">
-                      <span className="text-[11px] font-semibold text-emerald-800 uppercase tracking-wider block">
-                        Nilai Persediaan
-                      </span>
-                      <span className="text-sm sm:text-base font-black text-emerald-700 mt-1 block truncate">
-                        {formatRupiah(item.stock * item.unitPrice)}
-                      </span>
-                      <span className="text-[10px] text-emerald-600">Total Aset Fisik</span>
                     </div>
                   </div>
 
@@ -177,16 +178,9 @@ export const ItemDetailModal: React.FC = () => {
                   {/* Details Table */}
                   <div className="bg-white rounded-xl border border-slate-200 overflow-hidden text-xs">
                     <div className="bg-slate-50 px-4 py-2 font-bold text-slate-700 border-b border-slate-200">
-                      Informasi Barang & Pengadaan
+                      Informasi Barang
                     </div>
                     <div className="divide-y divide-slate-100">
-                      <div className="flex py-2 px-4">
-                        <span className="w-1/3 text-slate-500">Pemasok / Vendor</span>
-                        <span className="w-2/3 font-semibold text-slate-900 flex items-center gap-1">
-                          <Building2 className="w-3 h-3 text-slate-400" />
-                          {item.supplier || '-'}
-                        </span>
-                      </div>
                       {item.description && (
                         <div className="flex py-2 px-4">
                           <span className="w-1/3 text-slate-500">Deskripsi</span>

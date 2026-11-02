@@ -272,61 +272,18 @@ export const ItemFormModal: React.FC = () => {
             </div>
           </div>
 
-          {/* Row 3: Supplier */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-              Pemasok / Vendor Langganan
+          {/* Row 3: Stock */}
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              {isEditing ? 'Stok Saat Ini' : 'Stok Awal'} ({unit})
             </label>
             <input
-              type="text"
-              placeholder="misal: PT Sarana Grafika"
-              value={supplier}
-              onChange={(e) => setSupplier(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-slate-50 text-slate-900 rounded-xl border border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+              type="number"
+              min="0"
+              value={stock}
+              onChange={(e) => setStock(Math.max(0, parseInt(e.target.value) || 0))}
+              className="w-full px-3 py-1.5 text-sm bg-white font-bold text-slate-900 rounded-lg border border-slate-200 focus:border-blue-500 focus:outline-none"
             />
-          </div>
-
-          {/* Row 4: Stocks & Price */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-3 bg-slate-50 rounded-xl border border-slate-200">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                {isEditing ? 'Stok Saat Ini' : 'Stok Awal'} ({unit})
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={stock}
-                onChange={(e) => setStock(Math.max(0, parseInt(e.target.value) || 0))}
-                className="w-full px-3 py-1.5 text-sm bg-white font-bold text-slate-900 rounded-lg border border-slate-200 focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Batas Minimum (Safety Stock)
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={minStock}
-                onChange={(e) => setMinStock(Math.max(0, parseInt(e.target.value) || 0))}
-                className="w-full px-3 py-1.5 text-sm bg-white font-bold text-amber-700 rounded-lg border border-slate-200 focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Harga Satuan (Rp)
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="500"
-                value={unitPrice}
-                onChange={(e) => setUnitPrice(Math.max(0, parseInt(e.target.value) || 0))}
-                className="w-full px-3 py-1.5 text-sm bg-white font-bold text-emerald-700 rounded-lg border border-slate-200 focus:border-blue-500 focus:outline-none"
-              />
-            </div>
           </div>
 
           {/* Description */}

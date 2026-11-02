@@ -40,6 +40,7 @@ export const UserAccessManagementView: React.FC = () => {
     updateUser,
     deleteUser,
     resetUsersToDefault,
+    clearAllModules,
     resetToDefaultData,
     resetItemsToDefault,
     clearAllItems,
@@ -1319,22 +1320,22 @@ export const UserAccessManagementView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Card 7: Reset Seluruh Database Menu Utama */}
+              {/* Card 7: Reset & Kosongkan Seluruh Database Menu Utama */}
               <div className="bg-white p-5 rounded-2xl border-2 border-rose-300 shadow-xs hover:border-rose-400 transition-all flex flex-col justify-between md:col-span-2">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center font-bold shrink-0">
-                      <RotateCcw className="w-5 h-5" />
+                      <Trash2 className="w-5 h-5 text-rose-600" />
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <h3 className="font-bold text-slate-900 text-base">Reset Total Seluruh Menu Utama (Pabrik)</h3>
+                        <h3 className="font-bold text-slate-900 text-base">Reset & Kosongkan Seluruh Modul Menu Utama</h3>
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800">
-                          Reset Penuh
+                          Hapus Bersih Database Firebase
                         </span>
                       </div>
                       <p className="text-xs text-slate-600 leading-relaxed max-w-2xl mt-0.5">
-                        Mengembalikan <strong>seluruh data modul operasional</strong> (Katalog Barang, Barang Masuk & Keluar, Pengisian BBM, Stock Opname, serta Kategori) secara serentak ke data default awal Kanwil DJPb Riau.
+                        Menghapus dan mengosongkan <strong>seluruh data operasional</strong> (Katalog Barang, Barang Masuk & Keluar, Pengisian BBM, serta Stock Opname) secara permanen dari database cloud Firebase Firestore.
                       </p>
                     </div>
                   </div>
@@ -1344,11 +1345,11 @@ export const UserAccessManagementView: React.FC = () => {
                     onClick={async () => {
                       if (
                         window.confirm(
-                          '⚠️ PERINGATAN SISTEM ADMINISTRATOR:\nTindakan ini akan mengembalikan SELURUH database (barang, transaksi masuk/keluar, BBM, opname, kategori) ke kondisi awal default pabrik.\n\nApakah Anda benar-benar yakin ingin melanjutkan?'
+                          '⚠️ PERINGATAN SISTEM ADMINISTRATOR:\nTindakan ini akan MENGHAPUS SELURUH DATA operasional (Katalog Barang, Mutasi Masuk/Keluar, BBM, Opname) secara permanen dari basis data Firebase Firestore.\n\nApakah Anda benar-benar yakin ingin mengosongkan seluruh data?'
                         )
                       ) {
                         setIsResetting(true);
-                        const res = await resetToDefaultData();
+                        const res = await clearAllModules();
                         setIsResetting(false);
                         setResetFeedback({ type: res.success ? 'success' : 'error', message: res.message });
                         setTimeout(() => setResetFeedback(null), 5000);
@@ -1356,8 +1357,8 @@ export const UserAccessManagementView: React.FC = () => {
                     }}
                     className="shrink-0 py-2.5 px-4 bg-rose-600 hover:bg-rose-700 active:scale-[0.99] text-white rounded-xl text-xs font-bold inline-flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer disabled:opacity-50"
                   >
-                    <RotateCcw className="w-4 h-4" />
-                    <span>Reset Seluruh Modul</span>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Reset & Kosongkan Seluruh Modul</span>
                   </button>
                 </div>
               </div>

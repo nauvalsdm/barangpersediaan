@@ -31,6 +31,8 @@ export const MasterSettingsModal: React.FC = () => {
     categories,
     addCategory,
     deleteCategory,
+    clearAllModules,
+    restoreSampleData,
     resetToDefaultData,
     resetItemsToDefault,
     clearAllItems,
@@ -474,32 +476,50 @@ export const MasterSettingsModal: React.FC = () => {
                   </div>
                 </div>
 
-                {/* 7. Reset Menyeluruh Seluruh Menu Utama */}
-                <div className="p-4 bg-rose-50/70 rounded-xl border-2 border-rose-300">
+                {/* 7. Reset & Kosongkan Seluruh Menu Utama */}
+                <div className="p-4 bg-rose-50/80 rounded-xl border-2 border-rose-300">
                   <div className="flex items-start gap-3">
                     <div className="w-9 h-9 rounded-xl bg-rose-600 text-white flex items-center justify-center font-bold shrink-0 shadow-xs">
-                      <Sparkles className="w-5 h-5 text-amber-300" />
+                      <Trash2 className="w-5 h-5 text-white" />
                     </div>
-                    <div>
-                      <h4 className="font-bold text-rose-950 text-sm">
-                        Reset Total Seluruh Menu Utama (Setelan Pabrik)
+                    <div className="flex-1">
+                      <h4 className="font-bold text-rose-950 text-sm flex items-center gap-2">
+                        Reset & Kosongkan Seluruh Modul Menu Utama
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-200 text-rose-900">
+                          Hapus Bersih Database Firebase
+                        </span>
                       </h4>
-                      <p className="text-xs text-rose-800 mt-0.5 leading-relaxed">
-                        Mengembalikan <strong>seluruh modul operasional</strong> (Katalog Barang, Barang Masuk & Keluar, BBM, Stock Opname, serta Kategori) secara serentak ke data default awal Kanwil DJPb Riau.
+                      <p className="text-xs text-rose-800 mt-1 leading-relaxed">
+                        Menghapus dan mengosongkan <strong>seluruh data operasional</strong> (Katalog Barang, Mutasi Barang Masuk & Keluar, Pengisian BBM, dan Stock Opname) secara permanen dari basis data cloud Firebase Firestore.
                       </p>
-                      <button
-                        disabled={isProcessing}
-                        onClick={() =>
-                          handleAction(
-                            resetToDefaultData,
-                            '⚠️ PERINGATAN SISTEM ADMINISTRATOR:\nTindakan ini akan mengembalikan SELURUH database (barang, transaksi masuk/keluar, BBM, opname, kategori) ke data awal default pabrik.\n\nApakah Anda benar-benar yakin ingin melanjutkan?'
-                          )
-                        }
-                        className="mt-3 px-4 py-2 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white rounded-xl text-xs font-bold inline-flex items-center gap-2 shadow-xs transition-all cursor-pointer disabled:opacity-50"
-                      >
-                        <RotateCcw className="w-4 h-4" />
-                        Reset Seluruh Modul Menu Utama
-                      </button>
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <button
+                          disabled={isProcessing}
+                          onClick={() =>
+                            handleAction(
+                              clearAllModules,
+                              '⚠️ HAPUS & KOSONGKAN SELURUH MODUL MENU UTAMA:\nTindakan ini akan MENGHAPUS SELURUH DATA (Katalog Barang, Transaksi Masuk & Keluar, BBM, dan Stock Opname) dari database cloud Firebase Firestore secara permanen.\n\nApakah Anda benar-benar yakin ingin mengosongkan seluruh data aplikasi?'
+                            )
+                          }
+                          className="px-4 py-2 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white rounded-xl text-xs font-bold inline-flex items-center gap-2 shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span>Reset & Kosongkan Seluruh Modul</span>
+                        </button>
+                        <button
+                          disabled={isProcessing}
+                          onClick={() =>
+                            handleAction(
+                              restoreSampleData,
+                              '⚠️ SUNTIKKAN DATA CONTOH AWAL:\nBasis data Firebase akan diisi kembali dengan daftar barang standar dan transaksi contoh Kanwil DJPb Riau.\n\nLanjutkan?'
+                            )
+                          }
+                          className="px-3.5 py-2 bg-white hover:bg-rose-100 text-rose-800 border border-rose-300 active:scale-95 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>Suntikkan Data Contoh (Demo)</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

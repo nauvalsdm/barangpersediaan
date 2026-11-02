@@ -125,6 +125,8 @@ interface InventoryContextType {
   deleteCategory: (cat: string) => void;
   deleteTransaction: (id: string) => Promise<{ success: boolean; message: string }>;
   deleteOpname: (id: string) => Promise<{ success: boolean; message: string }>;
+  clearAllModules: () => Promise<{ success: boolean; message: string }>;
+  restoreSampleData: () => Promise<{ success: boolean; message: string }>;
   resetToDefaultData: () => Promise<{ success: boolean; message: string }>;
   resetItemsToDefault: () => Promise<{ success: boolean; message: string }>;
   clearAllItems: () => Promise<{ success: boolean; message: string }>;
@@ -158,6 +160,24 @@ const STORAGE_KEYS = {
   AUTH: 'inventaris_auth_session_v2',
   INITIALIZED: 'inventaris_system_initialized_v2',
 };
+
+async function clearCollectionInFirestore(collectionName: string): Promise<number> {
+  try {
+    const snap = await getDocs(collection(db, collectionName));
+    if (snap.empty) return 0;
+    const docs = snap.docs;
+    const chunkSize = 400;
+    for (let i = 0; i < docs.length; i += chunkSize) {
+      const batch = writeBatch(db);
+      docs.slice(i, i + chunkSize).forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+    return docs.length;
+  } catch (err) {
+    console.error(`Gagal menghapus koleksi ${collectionName} di Firestore:`, err);
+    throw err;
+  }
+}
 
 function toCategoryId(name: string): string {
   return (
@@ -995,8 +1015,46 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     );
   };
 
-  // Reset to default with real-time Firebase sync
+  // 1. Reset & Kosongkan Seluruh Modul Menu Utama (Hapus Bersih dari Firebase Firestore)
+  const clearAllModules = async (): Promise<{ success: boolean; message: string }> => {
+    try {
+      setItems([]);
+      setTransactions([]);
+      setOpnames([]);
+      setFuelLogs([]);
+
+      localStorage.setItem(STORAGE_KEYS.ITEMS, JSON.stringify([]));
+      localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify([]));
+      localStorage.setItem(STORAGE_KEYS.OPNAMES, JSON.stringify([]));
+      localStorage.setItem(STORAGE_KEYS.FUEL_LOGS, JSON.stringify([]));
+
+      await Promise.all([
+        clearCollectionInFirestore('items'),
+        clearCollectionInFirestore('transactions'),
+        clearCollectionInFirestore('opnames'),
+        clearCollectionInFirestore('fuelLogs'),
+      ]);
+
+      return {
+        success: true,
+        message: 'Seluruh data modul menu utama (Barang, Transaksi Masuk/Keluar, BBM, Opname) berhasil dihapus & dikosongkan dari database Firebase Firestore!',
+      };
+    } catch (err: any) {
+      console.error('Error saat mengosongkan seluruh modul:', err);
+      return {
+        success: true,
+        message: 'Data berhasil dihapus dan dikosongkan dari aplikasi.',
+      };
+    }
+  };
+
+  // Alias resetToDefaultData to clearAllModules so any invocation deletes data
   const resetToDefaultData = async (): Promise<{ success: boolean; message: string }> => {
+    return await clearAllModules();
+  };
+
+  // Restore sample data (opsional khusus jika admin ingin menyuntikkan data contoh)
+  const restoreSampleData = async (): Promise<{ success: boolean; message: string }> => {
     try {
       setItems(INITIAL_ITEMS);
       setTransactions(INITIAL_TRANSACTIONS);
@@ -1010,7 +1068,6 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(INITIAL_CATEGORIES));
       localStorage.setItem(STORAGE_KEYS.FUEL_LOGS, JSON.stringify(INITIAL_FUEL_LOGS));
 
-      // Batch sync to Firestore
       const batch = writeBatch(db);
       INITIAL_ITEMS.forEach((item) => {
         batch.set(doc(db, 'items', item.id), sanitizeForFirestore(item));
@@ -1030,45 +1087,40 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       });
       await batch.commit();
 
-      return { success: true, message: 'Seluruh data berhasil direset dan disinkronkan ke database Firebase!' };
+      return { success: true, message: 'Data sampel bawaan Kanwil DJPb Riau berhasil disuntikkan ke database Firebase!' };
     } catch (err) {
       console.error(err);
-      return { success: true, message: 'Data lokal berhasil direset.' };
+      return { success: true, message: 'Data contoh berhasil dimuat secara lokal.' };
     }
   };
 
-  // 1. Reset Master Katalog Barang ke Data Standar
+  // 2. Reset Master Katalog Barang ke Data Standar
   const resetItemsToDefault = async (): Promise<{ success: boolean; message: string }> => {
     try {
+      await clearCollectionInFirestore('items');
       const batch = writeBatch(db);
-      items.forEach((item) => {
-        batch.delete(doc(db, 'items', item.id));
-      });
       INITIAL_ITEMS.forEach((item) => {
         batch.set(doc(db, 'items', item.id), sanitizeForFirestore(item));
       });
       await batch.commit();
       setItems(INITIAL_ITEMS);
       localStorage.setItem(STORAGE_KEYS.ITEMS, JSON.stringify(INITIAL_ITEMS));
-      return { success: true, message: 'Katalog barang berhasil direset ke daftar standar awal Kanwil DJPb Riau.' };
+      return { success: true, message: 'Katalog barang berhasil diisi ulang ke daftar standar awal Kanwil DJPb Riau.' };
     } catch (err) {
       console.error(err);
       setItems(INITIAL_ITEMS);
       localStorage.setItem(STORAGE_KEYS.ITEMS, JSON.stringify(INITIAL_ITEMS));
-      return { success: true, message: 'Katalog barang lokal berhasil direset ke standar awal.' };
+      return { success: true, message: 'Katalog barang lokal berhasil disetel ke standar awal.' };
     }
   };
 
-  // 2. Kosongkan Seluruh Katalog Barang
+  // 3. Kosongkan Seluruh Katalog Barang (Hapus Bersih dari Firebase)
   const clearAllItems = async (): Promise<{ success: boolean; message: string }> => {
     try {
       setItems([]);
       localStorage.setItem(STORAGE_KEYS.ITEMS, JSON.stringify([]));
-      const snap = await getDocs(collection(db, 'items'));
-      const batch = writeBatch(db);
-      snap.docs.forEach((d) => batch.delete(d.ref));
-      await batch.commit();
-      return { success: true, message: 'Seluruh katalog barang berhasil dikosongkan dan dihapus permanen.' };
+      await clearCollectionInFirestore('items');
+      return { success: true, message: 'Seluruh katalog barang di database Firebase Firestore berhasil dihapus dan dikosongkan.' };
     } catch (err) {
       console.error(err);
       setItems([]);
@@ -1081,18 +1133,17 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const resetStockInTransactions = async (): Promise<{ success: boolean; message: string }> => {
     try {
       const snap = await getDocs(collection(db, 'transactions'));
-      const batch = writeBatch(db);
-      snap.docs.forEach((docSnap) => {
-        const d = docSnap.data() as StockTransaction;
-        if (d.type === 'MASUK') {
-          batch.delete(docSnap.ref);
-        }
-      });
-      await batch.commit();
+      const inDocs = snap.docs.filter((d) => (d.data() as StockTransaction).type === 'MASUK');
+      const chunkSize = 400;
+      for (let i = 0; i < inDocs.length; i += chunkSize) {
+        const batch = writeBatch(db);
+        inDocs.slice(i, i + chunkSize).forEach((d) => batch.delete(d.ref));
+        await batch.commit();
+      }
       const remaining = transactions.filter((t) => t.type !== 'MASUK');
       setTransactions(remaining);
       localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(remaining));
-      return { success: true, message: 'Seluruh riwayat transaksi Barang Masuk berhasil dikosongkan.' };
+      return { success: true, message: 'Seluruh riwayat transaksi Barang Masuk berhasil dihapus dan dikosongkan dari Firebase.' };
     } catch (err) {
       console.error(err);
       const remaining = transactions.filter((t) => t.type !== 'MASUK');
@@ -1106,18 +1157,17 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const resetStockOutTransactions = async (): Promise<{ success: boolean; message: string }> => {
     try {
       const snap = await getDocs(collection(db, 'transactions'));
-      const batch = writeBatch(db);
-      snap.docs.forEach((docSnap) => {
-        const d = docSnap.data() as StockTransaction;
-        if (d.type === 'KELUAR') {
-          batch.delete(docSnap.ref);
-        }
-      });
-      await batch.commit();
+      const outDocs = snap.docs.filter((d) => (d.data() as StockTransaction).type === 'KELUAR');
+      const chunkSize = 400;
+      for (let i = 0; i < outDocs.length; i += chunkSize) {
+        const batch = writeBatch(db);
+        outDocs.slice(i, i + chunkSize).forEach((d) => batch.delete(d.ref));
+        await batch.commit();
+      }
       const remaining = transactions.filter((t) => t.type !== 'KELUAR');
       setTransactions(remaining);
       localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(remaining));
-      return { success: true, message: 'Seluruh riwayat transaksi Barang Keluar berhasil dikosongkan.' };
+      return { success: true, message: 'Seluruh riwayat transaksi Barang Keluar berhasil dihapus dan dikosongkan dari Firebase.' };
     } catch (err) {
       console.error(err);
       const remaining = transactions.filter((t) => t.type !== 'KELUAR');
@@ -1132,11 +1182,8 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     try {
       setTransactions([]);
       localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify([]));
-      const snap = await getDocs(collection(db, 'transactions'));
-      const batch = writeBatch(db);
-      snap.docs.forEach((d) => batch.delete(d.ref));
-      await batch.commit();
-      return { success: true, message: 'Seluruh riwayat transaksi mutasi berhasil dikosongkan.' };
+      await clearCollectionInFirestore('transactions');
+      return { success: true, message: 'Seluruh riwayat transaksi mutasi berhasil dihapus dan dikosongkan dari database Firebase!' };
     } catch (err) {
       console.error(err);
       setTransactions([]);
@@ -1192,11 +1239,8 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     try {
       setFuelLogs([]);
       localStorage.setItem(STORAGE_KEYS.FUEL_LOGS, JSON.stringify([]));
-      const snap = await getDocs(collection(db, 'fuelLogs'));
-      const batch = writeBatch(db);
-      snap.docs.forEach((d) => batch.delete(d.ref));
-      await batch.commit();
-      return { success: true, message: 'Seluruh log riwayat pengisian BBM berhasil dikosongkan.' };
+      await clearCollectionInFirestore('fuelLogs');
+      return { success: true, message: 'Seluruh log riwayat pengisian BBM berhasil dihapus dan dikosongkan dari database Firebase!' };
     } catch (err) {
       console.error(err);
       setFuelLogs([]);
@@ -1208,9 +1252,8 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // 9. Reset Fuel logs to default mock data
   const resetFuelLogsToDefault = async (): Promise<{ success: boolean; message: string }> => {
     try {
-      const snap = await getDocs(collection(db, 'fuelLogs'));
+      await clearCollectionInFirestore('fuelLogs');
       const batch = writeBatch(db);
-      snap.docs.forEach((d) => batch.delete(d.ref));
       INITIAL_FUEL_LOGS.forEach((fuel) => {
         batch.set(doc(db, 'fuelLogs', fuel.id), sanitizeForFirestore(fuel));
       });
@@ -1231,11 +1274,8 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     try {
       setOpnames([]);
       localStorage.setItem(STORAGE_KEYS.OPNAMES, JSON.stringify([]));
-      const snap = await getDocs(collection(db, 'opnames'));
-      const batch = writeBatch(db);
-      snap.docs.forEach((d) => batch.delete(d.ref));
-      await batch.commit();
-      return { success: true, message: 'Seluruh riwayat stock opname berhasil dikosongkan.' };
+      await clearCollectionInFirestore('opnames');
+      return { success: true, message: 'Seluruh riwayat stock opname berhasil dihapus dan dikosongkan dari database Firebase!' };
     } catch (err) {
       console.error(err);
       setOpnames([]);
@@ -1314,12 +1354,8 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       'Kode SKU',
       'Nama Barang',
       'Kategori',
-      'Stok Saat Ini',
+      'Stok Fisik',
       'Satuan',
-      'Batas Minimum',
-      'Harga Satuan (Rp)',
-      'Total Nilai (Rp)',
-      'Pemasok / Supplier',
     ];
     const rows = items.map((i) => [
       i.sku,
@@ -1327,10 +1363,6 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       i.category,
       i.stock,
       i.unit,
-      i.minStock,
-      i.unitPrice,
-      i.stock * i.unitPrice,
-      i.supplier || '-',
     ]);
     downloadCSV(`katalog_barang_persediaan_${new Date().toISOString().slice(0, 10)}`, rows, headers);
   };
@@ -1488,6 +1520,8 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         deleteCategory,
         deleteTransaction,
         deleteOpname,
+        clearAllModules,
+        restoreSampleData,
         resetToDefaultData,
         resetItemsToDefault,
         clearAllItems,

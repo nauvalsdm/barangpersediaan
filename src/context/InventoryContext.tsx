@@ -6,6 +6,8 @@ import {
   deleteDoc,
   onSnapshot,
   writeBatch,
+  getDocs,
+  getDoc,
 } from 'firebase/firestore';
 import { signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
 import {
@@ -121,6 +123,8 @@ interface InventoryContextType {
   ) => void;
   addCategory: (cat: string) => void;
   deleteCategory: (cat: string) => void;
+  deleteTransaction: (id: string) => Promise<{ success: boolean; message: string }>;
+  deleteOpname: (id: string) => Promise<{ success: boolean; message: string }>;
   resetToDefaultData: () => Promise<{ success: boolean; message: string }>;
   resetItemsToDefault: () => Promise<{ success: boolean; message: string }>;
   clearAllItems: () => Promise<{ success: boolean; message: string }>;
@@ -144,15 +148,15 @@ interface InventoryContextType {
 const InventoryContext = createContext<InventoryContextType | undefined>(undefined);
 
 const STORAGE_KEYS = {
-  ITEMS: 'inventaris_items_v1',
-  TRANSACTIONS: 'inventaris_transactions_v1',
-  OPNAMES: 'inventaris_opnames_v1',
-  CATEGORIES: 'inventaris_categories_v1',
-  FUEL_LOGS: 'inventaris_fuel_logs_v1',
-  USER: 'inventaris_user_v1',
-  USERS: 'inventaris_users_list_v1',
-  AUTH: 'inventaris_auth_session_v1',
-  SEEDED: 'inventaris_firestore_seeded_v1',
+  ITEMS: 'inventaris_items_v2',
+  TRANSACTIONS: 'inventaris_transactions_v2',
+  OPNAMES: 'inventaris_opnames_v2',
+  CATEGORIES: 'inventaris_categories_v2',
+  FUEL_LOGS: 'inventaris_fuel_logs_v2',
+  USER: 'inventaris_user_v2',
+  USERS: 'inventaris_users_list_v2',
+  AUTH: 'inventaris_auth_session_v2',
+  INITIALIZED: 'inventaris_system_initialized_v2',
 };
 
 function toCategoryId(name: string): string {
@@ -211,49 +215,69 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   });
 
+  // Determine if system was initialized before
+  const isSystemInitialized = () => {
+    try {
+      return localStorage.getItem(STORAGE_KEYS.INITIALIZED) === 'true';
+    } catch {
+      return true;
+    }
+  };
+
   // Initialize with LocalStorage or default initial data
   const [items, setItems] = useState<InventoryItem[]>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.ITEMS);
-      return stored ? JSON.parse(stored) : INITIAL_ITEMS;
-    } catch {
+      if (stored !== null) return JSON.parse(stored);
+      if (isSystemInitialized()) return [];
+      localStorage.setItem(STORAGE_KEYS.INITIALIZED, 'true');
       return INITIAL_ITEMS;
+    } catch {
+      return [];
     }
   });
 
   const [transactions, setTransactions] = useState<StockTransaction[]>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
-      return stored ? JSON.parse(stored) : INITIAL_TRANSACTIONS;
-    } catch {
+      if (stored !== null) return JSON.parse(stored);
+      if (isSystemInitialized()) return [];
       return INITIAL_TRANSACTIONS;
+    } catch {
+      return [];
     }
   });
 
   const [opnames, setOpnames] = useState<OpnameSession[]>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.OPNAMES);
-      return stored ? JSON.parse(stored) : INITIAL_OPNAMES;
-    } catch {
+      if (stored !== null) return JSON.parse(stored);
+      if (isSystemInitialized()) return [];
       return INITIAL_OPNAMES;
+    } catch {
+      return [];
     }
   });
 
   const [categories, setCategories] = useState<string[]>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
-      return stored ? JSON.parse(stored) : INITIAL_CATEGORIES;
-    } catch {
+      if (stored !== null) return JSON.parse(stored);
+      if (isSystemInitialized()) return [];
       return INITIAL_CATEGORIES;
+    } catch {
+      return [];
     }
   });
 
   const [fuelLogs, setFuelLogs] = useState<FuelLogRecord[]>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.FUEL_LOGS);
-      return stored ? JSON.parse(stored) : INITIAL_FUEL_LOGS;
-    } catch {
+      if (stored !== null) return JSON.parse(stored);
+      if (isSystemInitialized()) return [];
       return INITIAL_FUEL_LOGS;
+    } catch {
+      return [];
     }
   });
 
@@ -340,26 +364,21 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     // 1. Items Listener
     const unsubItems = onSnapshot(
       collection(db, 'items'),
-      async (snapshot) => {
+      (snapshot) => {
         setIsFirebaseConnected(true);
-        if (snapshot.empty && !seededRef.current.items) {
-          seededRef.current.items = true;
+        if (snapshot.empty) {
+          setItems([]);
           try {
-            const batch = writeBatch(db);
-            INITIAL_ITEMS.forEach((item) => {
-              batch.set(doc(db, 'items', item.id), sanitizeForFirestore(item));
-            });
-            await batch.commit();
-          } catch (err) {
-            handleFirestoreError(err, OperationType.WRITE, 'items');
-          }
+            localStorage.setItem(STORAGE_KEYS.ITEMS, JSON.stringify([]));
+          } catch (e) {}
           return;
         }
-        if (!snapshot.empty) {
-          const loaded = snapshot.docs.map((d) => d.data() as InventoryItem);
-          loaded.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-          setItems(loaded);
-        }
+        const loaded = snapshot.docs.map((d) => d.data() as InventoryItem);
+        loaded.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+        setItems(loaded);
+        try {
+          localStorage.setItem(STORAGE_KEYS.ITEMS, JSON.stringify(loaded));
+        } catch (e) {}
       },
       (error) => {
         handleFirestoreError(error, OperationType.LIST, 'items');
@@ -369,26 +388,21 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     // 2. Transactions Listener
     const unsubTransactions = onSnapshot(
       collection(db, 'transactions'),
-      async (snapshot) => {
+      (snapshot) => {
         setIsFirebaseConnected(true);
-        if (snapshot.empty && !seededRef.current.transactions) {
-          seededRef.current.transactions = true;
+        if (snapshot.empty) {
+          setTransactions([]);
           try {
-            const batch = writeBatch(db);
-            INITIAL_TRANSACTIONS.forEach((trx) => {
-              batch.set(doc(db, 'transactions', trx.id), sanitizeForFirestore(trx));
-            });
-            await batch.commit();
-          } catch (err) {
-            handleFirestoreError(err, OperationType.WRITE, 'transactions');
-          }
+            localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify([]));
+          } catch (e) {}
           return;
         }
-        if (!snapshot.empty) {
-          const loaded = snapshot.docs.map((d) => d.data() as StockTransaction);
-          loaded.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-          setTransactions(loaded);
-        }
+        const loaded = snapshot.docs.map((d) => d.data() as StockTransaction);
+        loaded.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+        setTransactions(loaded);
+        try {
+          localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(loaded));
+        } catch (e) {}
       },
       (error) => {
         handleFirestoreError(error, OperationType.LIST, 'transactions');
@@ -398,26 +412,21 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     // 3. Opnames Listener
     const unsubOpnames = onSnapshot(
       collection(db, 'opnames'),
-      async (snapshot) => {
+      (snapshot) => {
         setIsFirebaseConnected(true);
-        if (snapshot.empty && !seededRef.current.opnames) {
-          seededRef.current.opnames = true;
+        if (snapshot.empty) {
+          setOpnames([]);
           try {
-            const batch = writeBatch(db);
-            INITIAL_OPNAMES.forEach((opn) => {
-              batch.set(doc(db, 'opnames', opn.id), sanitizeForFirestore(opn));
-            });
-            await batch.commit();
-          } catch (err) {
-            handleFirestoreError(err, OperationType.WRITE, 'opnames');
-          }
+            localStorage.setItem(STORAGE_KEYS.OPNAMES, JSON.stringify([]));
+          } catch (e) {}
           return;
         }
-        if (!snapshot.empty) {
-          const loaded = snapshot.docs.map((d) => d.data() as OpnameSession);
-          loaded.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-          setOpnames(loaded);
-        }
+        const loaded = snapshot.docs.map((d) => d.data() as OpnameSession);
+        loaded.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+        setOpnames(loaded);
+        try {
+          localStorage.setItem(STORAGE_KEYS.OPNAMES, JSON.stringify(loaded));
+        } catch (e) {}
       },
       (error) => {
         handleFirestoreError(error, OperationType.LIST, 'opnames');
@@ -427,26 +436,21 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     // 4. Fuel Logs Listener
     const unsubFuelLogs = onSnapshot(
       collection(db, 'fuelLogs'),
-      async (snapshot) => {
+      (snapshot) => {
         setIsFirebaseConnected(true);
-        if (snapshot.empty && !seededRef.current.fuelLogs) {
-          seededRef.current.fuelLogs = true;
+        if (snapshot.empty) {
+          setFuelLogs([]);
           try {
-            const batch = writeBatch(db);
-            INITIAL_FUEL_LOGS.forEach((fuel) => {
-              batch.set(doc(db, 'fuelLogs', fuel.id), sanitizeForFirestore(fuel));
-            });
-            await batch.commit();
-          } catch (err) {
-            handleFirestoreError(err, OperationType.WRITE, 'fuelLogs');
-          }
+            localStorage.setItem(STORAGE_KEYS.FUEL_LOGS, JSON.stringify([]));
+          } catch (e) {}
           return;
         }
-        if (!snapshot.empty) {
-          const loaded = snapshot.docs.map((d) => d.data() as FuelLogRecord);
-          loaded.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-          setFuelLogs(loaded);
-        }
+        const loaded = snapshot.docs.map((d) => d.data() as FuelLogRecord);
+        loaded.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+        setFuelLogs(loaded);
+        try {
+          localStorage.setItem(STORAGE_KEYS.FUEL_LOGS, JSON.stringify(loaded));
+        } catch (e) {}
       },
       (error) => {
         handleFirestoreError(error, OperationType.LIST, 'fuelLogs');
@@ -456,26 +460,20 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     // 5. Categories Listener
     const unsubCategories = onSnapshot(
       collection(db, 'categories'),
-      async (snapshot) => {
+      (snapshot) => {
         setIsFirebaseConnected(true);
-        if (snapshot.empty && !seededRef.current.categories) {
-          seededRef.current.categories = true;
+        if (snapshot.empty) {
+          setCategories([]);
           try {
-            const batch = writeBatch(db);
-            INITIAL_CATEGORIES.forEach((catName) => {
-              const catId = toCategoryId(catName);
-              batch.set(doc(db, 'categories', catId), { id: catId, name: catName });
-            });
-            await batch.commit();
-          } catch (err) {
-            handleFirestoreError(err, OperationType.WRITE, 'categories');
-          }
+            localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify([]));
+          } catch (e) {}
           return;
         }
-        if (!snapshot.empty) {
-          const loaded = snapshot.docs.map((d) => (d.data() as { id: string; name: string }).name);
-          setCategories(loaded);
-        }
+        const loaded = snapshot.docs.map((d) => (d.data() as { id: string; name: string }).name);
+        setCategories(loaded);
+        try {
+          localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(loaded));
+        } catch (e) {}
       },
       (error) => {
         handleFirestoreError(error, OperationType.LIST, 'categories');
@@ -503,6 +501,9 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         if (!snapshot.empty) {
           const loaded = snapshot.docs.map((d) => d.data() as UserProfile);
           setUsers(loaded);
+          try {
+            localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(loaded));
+          } catch (e) {}
         }
       },
       (error) => {
@@ -1061,14 +1062,13 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // 2. Kosongkan Seluruh Katalog Barang
   const clearAllItems = async (): Promise<{ success: boolean; message: string }> => {
     try {
-      const batch = writeBatch(db);
-      items.forEach((item) => {
-        batch.delete(doc(db, 'items', item.id));
-      });
-      await batch.commit();
       setItems([]);
       localStorage.setItem(STORAGE_KEYS.ITEMS, JSON.stringify([]));
-      return { success: true, message: 'Seluruh katalog barang berhasil dikosongkan.' };
+      const snap = await getDocs(collection(db, 'items'));
+      const batch = writeBatch(db);
+      snap.docs.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+      return { success: true, message: 'Seluruh katalog barang berhasil dikosongkan dan dihapus permanen.' };
     } catch (err) {
       console.error(err);
       setItems([]);
@@ -1080,10 +1080,13 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // 3. Reset Riwayat Transaksi Barang Masuk
   const resetStockInTransactions = async (): Promise<{ success: boolean; message: string }> => {
     try {
-      const masukTrx = transactions.filter((t) => t.type === 'MASUK');
+      const snap = await getDocs(collection(db, 'transactions'));
       const batch = writeBatch(db);
-      masukTrx.forEach((t) => {
-        batch.delete(doc(db, 'transactions', t.id));
+      snap.docs.forEach((docSnap) => {
+        const d = docSnap.data() as StockTransaction;
+        if (d.type === 'MASUK') {
+          batch.delete(docSnap.ref);
+        }
       });
       await batch.commit();
       const remaining = transactions.filter((t) => t.type !== 'MASUK');
@@ -1102,10 +1105,13 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // 4. Reset Riwayat Transaksi Barang Keluar
   const resetStockOutTransactions = async (): Promise<{ success: boolean; message: string }> => {
     try {
-      const keluarTrx = transactions.filter((t) => t.type === 'KELUAR');
+      const snap = await getDocs(collection(db, 'transactions'));
       const batch = writeBatch(db);
-      keluarTrx.forEach((t) => {
-        batch.delete(doc(db, 'transactions', t.id));
+      snap.docs.forEach((docSnap) => {
+        const d = docSnap.data() as StockTransaction;
+        if (d.type === 'KELUAR') {
+          batch.delete(docSnap.ref);
+        }
       });
       await batch.commit();
       const remaining = transactions.filter((t) => t.type !== 'KELUAR');
@@ -1124,13 +1130,12 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // 5. Reset only stock transaction logs (Mutasi Masuk & Keluar)
   const resetTransactions = async (): Promise<{ success: boolean; message: string }> => {
     try {
-      const batch = writeBatch(db);
-      transactions.forEach((t) => {
-        batch.delete(doc(db, 'transactions', t.id));
-      });
-      await batch.commit();
       setTransactions([]);
       localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify([]));
+      const snap = await getDocs(collection(db, 'transactions'));
+      const batch = writeBatch(db);
+      snap.docs.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
       return { success: true, message: 'Seluruh riwayat transaksi mutasi berhasil dikosongkan.' };
     } catch (err) {
       console.error(err);
@@ -1140,16 +1145,57 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
-  // 6. Reset only fuel fill logs
+  // 6. Delete individual stock transaction
+  const deleteTransaction = async (id: string): Promise<{ success: boolean; message: string }> => {
+    if (!isAdmin) {
+      return { success: false, message: 'Hanya Administrator yang berwenang menghapus transaksi.' };
+    }
+    const target = transactions.find((t) => t.id === id);
+    const remaining = transactions.filter((t) => t.id !== id);
+    setTransactions(remaining);
+    localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(remaining));
+    try {
+      await deleteDoc(doc(db, 'transactions', id));
+      return {
+        success: true,
+        message: `Transaksi ${target?.referenceNo || id} berhasil dihapus permanen.`,
+      };
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `transactions/${id}`);
+      return { success: true, message: 'Transaksi berhasil dihapus dari sistem.' };
+    }
+  };
+
+  // 7. Delete individual opname session
+  const deleteOpname = async (id: string): Promise<{ success: boolean; message: string }> => {
+    if (!isAdmin) {
+      return { success: false, message: 'Hanya Administrator yang berwenang menghapus sesi stock opname.' };
+    }
+    const target = opnames.find((o) => o.id === id);
+    const remaining = opnames.filter((o) => o.id !== id);
+    setOpnames(remaining);
+    localStorage.setItem(STORAGE_KEYS.OPNAMES, JSON.stringify(remaining));
+    try {
+      await deleteDoc(doc(db, 'opnames', id));
+      return {
+        success: true,
+        message: `Sesi Stock Opname ${target?.referenceNo || id} berhasil dihapus permanen.`,
+      };
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `opnames/${id}`);
+      return { success: true, message: 'Sesi opname berhasil dihapus dari sistem.' };
+    }
+  };
+
+  // 8. Reset only fuel fill logs
   const resetFuelLogs = async (): Promise<{ success: boolean; message: string }> => {
     try {
-      const batch = writeBatch(db);
-      fuelLogs.forEach((f) => {
-        batch.delete(doc(db, 'fuelLogs', f.id));
-      });
-      await batch.commit();
       setFuelLogs([]);
       localStorage.setItem(STORAGE_KEYS.FUEL_LOGS, JSON.stringify([]));
+      const snap = await getDocs(collection(db, 'fuelLogs'));
+      const batch = writeBatch(db);
+      snap.docs.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
       return { success: true, message: 'Seluruh log riwayat pengisian BBM berhasil dikosongkan.' };
     } catch (err) {
       console.error(err);
@@ -1159,13 +1205,12 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
-  // 7. Reset Fuel logs to default mock data
+  // 9. Reset Fuel logs to default mock data
   const resetFuelLogsToDefault = async (): Promise<{ success: boolean; message: string }> => {
     try {
+      const snap = await getDocs(collection(db, 'fuelLogs'));
       const batch = writeBatch(db);
-      fuelLogs.forEach((f) => {
-        batch.delete(doc(db, 'fuelLogs', f.id));
-      });
+      snap.docs.forEach((d) => batch.delete(d.ref));
       INITIAL_FUEL_LOGS.forEach((fuel) => {
         batch.set(doc(db, 'fuelLogs', fuel.id), sanitizeForFirestore(fuel));
       });
@@ -1181,16 +1226,15 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
-  // 8. Reset only stock opname sessions
+  // 10. Reset only stock opname sessions
   const resetOpnames = async (): Promise<{ success: boolean; message: string }> => {
     try {
-      const batch = writeBatch(db);
-      opnames.forEach((o) => {
-        batch.delete(doc(db, 'opnames', o.id));
-      });
-      await batch.commit();
       setOpnames([]);
       localStorage.setItem(STORAGE_KEYS.OPNAMES, JSON.stringify([]));
+      const snap = await getDocs(collection(db, 'opnames'));
+      const batch = writeBatch(db);
+      snap.docs.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
       return { success: true, message: 'Seluruh riwayat stock opname berhasil dikosongkan.' };
     } catch (err) {
       console.error(err);
@@ -1442,6 +1486,8 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         saveOpname,
         addCategory,
         deleteCategory,
+        deleteTransaction,
+        deleteOpname,
         resetToDefaultData,
         resetItemsToDefault,
         clearAllItems,

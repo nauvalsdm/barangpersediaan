@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Sparkles, Package, AlertCircle } from 'lucide-react';
+import { X, Sparkles, Package, AlertCircle, Trash2 } from 'lucide-react';
 import { useInventory } from '../context/InventoryContext';
 import { INITIAL_UNITS } from '../data/initialData';
 
@@ -9,6 +9,7 @@ export const ItemFormModal: React.FC = () => {
     closeItemForm,
     addItem,
     updateItem,
+    deleteItem,
     categories,
     addCategory,
   } = useInventory();
@@ -343,20 +344,44 @@ export const ItemFormModal: React.FC = () => {
           </div>
 
           {/* Footer buttons */}
-          <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={closeItemForm}
-              className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors"
-            >
-              Batal
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 active:scale-95 rounded-xl shadow-xs transition-all"
-            >
-              {isEditing ? 'Simpan Perubahan' : 'Daftarkan Barang'}
-            </button>
+          <div className="flex items-center justify-between gap-2 pt-4 border-t border-slate-100">
+            {isEditing && existing ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      `⚠️ Hapus permanen barang "${existing.name}" (SKU: ${existing.sku}) dari sistem?\nData yang sudah dihapus tidak akan ditampilkan lagi.`
+                    )
+                  ) {
+                    deleteItem(existing.id);
+                    closeItemForm();
+                  }
+                }}
+                className="px-3 py-2 text-xs font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Hapus Barang</span>
+              </button>
+            ) : (
+              <div />
+            )}
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={closeItemForm}
+                className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 active:scale-95 rounded-xl shadow-xs transition-all cursor-pointer"
+              >
+                {isEditing ? 'Simpan Perubahan' : 'Daftarkan Barang'}
+              </button>
+            </div>
           </div>
         </form>
       </div>

@@ -13,6 +13,7 @@ import {
   RotateCcw,
   Lock,
   ArrowUpRight,
+  Trash2,
 } from 'lucide-react';
 import { useInventory } from '../context/InventoryContext';
 import { OpnameEntry, OpnameSession } from '../types/inventory';
@@ -23,6 +24,7 @@ export const StockOpnameView: React.FC = () => {
     items,
     opnames,
     saveOpname,
+    deleteOpname,
     setPrintDoc,
     isAdmin,
     isPPNPN,
@@ -32,6 +34,7 @@ export const StockOpnameView: React.FC = () => {
 
   // Mode: list or active opname session
   const [isCreatingNew, setIsCreatingNew] = useState(false);
+  const [confirmDeleteOpnameId, setConfirmDeleteOpnameId] = useState<string | null>(null);
   const [opnameTitle, setOpnameTitle] = useState('');
   const [officerName, setOfficerName] = useState('');
   const [opnameNotes, setOpnameNotes] = useState('');
@@ -466,14 +469,46 @@ export const StockOpnameView: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between">
-                    <button
-                      onClick={() => handlePrintSheet(session)}
-                      className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors"
-                    >
-                      <Printer className="w-3.5 h-3.5" />
-                      <span>Cetak Hasil</span>
-                    </button>
+                  <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => handlePrintSheet(session)}
+                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                        <span>Cetak Hasil</span>
+                      </button>
+
+                      {isAdmin && (
+                        confirmDeleteOpnameId === session.id ? (
+                          <div className="inline-flex items-center gap-1">
+                            <button
+                              onClick={async () => {
+                                await deleteOpname(session.id);
+                                setConfirmDeleteOpnameId(null);
+                              }}
+                              className="px-2.5 py-1 rounded bg-rose-600 text-white text-[11px] font-bold hover:bg-rose-700 cursor-pointer"
+                            >
+                              Hapus
+                            </button>
+                            <button
+                              onClick={() => setConfirmDeleteOpnameId(null)}
+                              className="px-2 py-1 rounded bg-slate-200 text-slate-700 text-[11px] font-semibold hover:bg-slate-300 cursor-pointer"
+                            >
+                              Batal
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setConfirmDeleteOpnameId(session.id)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                            title="Hapus Sesi Stock Opname"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )
+                      )}
+                    </div>
                     <span className="text-[11px] text-slate-400">
                       Disimpan {formatDateTimeIndo(session.createdAt)}
                     </span>

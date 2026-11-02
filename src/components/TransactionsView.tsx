@@ -13,6 +13,7 @@ import {
   FileText,
   Clock,
   X,
+  Trash2,
 } from 'lucide-react';
 import { useInventory } from '../context/InventoryContext';
 import { StockTransaction, TransactionType } from '../types/inventory';
@@ -28,6 +29,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ initialType 
     openTransactionModal,
     exportTransactionsToCSV,
     setPrintDoc,
+    deleteTransaction,
     isAdmin,
     isPPNPN,
   } = useInventory();
@@ -38,6 +40,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ initialType 
   );
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter((t) => {
@@ -199,7 +202,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ initialType 
                   <th className="py-3 px-4">Pihak / Pemohon</th>
                   <th className="py-3 px-4">Petugas / PIC</th>
                   <th className="py-3 px-4 text-right">Stok Riil</th>
-                  <th className="py-3 px-4 text-center">Cetak</th>
+                  <th className="py-3 px-4 text-center">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -297,15 +300,47 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ initialType 
                         <span className="text-slate-500 text-[10px] ml-1">{trx.unit}</span>
                       </td>
 
-                      {/* Print Action */}
-                      <td className="py-3 px-4 text-center">
-                        <button
-                          onClick={() => handlePrint(trx)}
-                          className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Cetak Bukti Transaksi Resmi"
-                        >
-                          <Printer className="w-4 h-4" />
-                        </button>
+                      {/* Actions */}
+                      <td className="py-3 px-4 text-center whitespace-nowrap">
+                        {confirmDeleteId === trx.id ? (
+                          <div className="inline-flex items-center gap-1">
+                            <button
+                              onClick={async () => {
+                                await deleteTransaction(trx.id);
+                                setConfirmDeleteId(null);
+                              }}
+                              className="px-2 py-1 rounded bg-rose-600 text-white text-[11px] font-bold hover:bg-rose-700 cursor-pointer"
+                              title="Konfirmasi Hapus"
+                            >
+                              Hapus
+                            </button>
+                            <button
+                              onClick={() => setConfirmDeleteId(null)}
+                              className="px-2 py-1 rounded bg-slate-200 text-slate-700 text-[11px] font-semibold hover:bg-slate-300 cursor-pointer"
+                            >
+                              Batal
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="inline-flex items-center gap-1">
+                            <button
+                              onClick={() => handlePrint(trx)}
+                              className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                              title="Cetak Bukti Transaksi Resmi"
+                            >
+                              <Printer className="w-4 h-4" />
+                            </button>
+                            {isAdmin && (
+                              <button
+                                onClick={() => setConfirmDeleteId(trx.id)}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                title="Hapus Transaksi Permanen"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );

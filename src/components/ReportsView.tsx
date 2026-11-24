@@ -227,15 +227,15 @@ export const ReportsView: React.FC = () => {
         <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-4 sm:p-5">
           <h3 className="font-bold text-slate-900 text-sm sm:text-base flex items-center gap-2 mb-1">
             <Building className="w-4 h-4 text-amber-600" />
-            Distribusi Pemakaian per Unit Kerja / Divisi
+            Distribusi Pemakaian per Bagian/Bidang
           </h3>
           <p className="text-xs text-slate-500 mb-4">
-            Rekapitulasi alokasi logistik barang keluar kepada unit pemohon
+            Rekapitulasi alokasi logistik barang keluar kepada Bagian/Bidang
           </p>
 
           {divisionReport.length === 0 ? (
             <p className="text-xs text-slate-400 py-6 text-center">
-              Belum ada riwayat pengeluaran barang ke divisi.
+              Belum ada riwayat pengeluaran barang ke Bagian/Bidang.
             </p>
           ) : (
             <div className="space-y-3">

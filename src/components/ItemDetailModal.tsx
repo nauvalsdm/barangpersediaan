@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   X,
   Package,
@@ -13,6 +13,7 @@ import {
   Tag,
   Clock,
   Trash2,
+  RotateCcw,
 } from 'lucide-react';
 import { useInventory } from '../context/InventoryContext';
 import { formatDateTimeIndo, generateBarcodeLines } from '../utils/formatters';
@@ -25,11 +26,15 @@ export const ItemDetailModal: React.FC = () => {
     openTransactionModal,
     openItemForm,
     deleteItem,
+    deleteTransaction,
     isAdmin,
-    isPPNPN,
   } = useInventory();
 
-          if (!selectedItemForDetail) return null;
+  const [confirmCancelTxId, setConfirmCancelTxId] = useState<string | null>(null);
+  const [cancelingTxId, setCancelingTxId] = useState<string | null>(null);
+  const [restoreNotice, setRestoreNotice] = useState<string | null>(null);
+
+  if (!selectedItemForDetail) return null;
 
           const item = selectedItemForDetail;
           const isLow = item.stock <= item.minStock && item.stock > 0;
@@ -206,6 +211,18 @@ export const ItemDetailModal: React.FC = () => {
                       </span>
                     </div>
 
+                    {restoreNotice && (
+                      <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center justify-between gap-2">
+                        <span className="font-semibold">{restoreNotice}</span>
+                        <button
+                          onClick={() => setRestoreNotice(null)}
+                          className="text-emerald-600 hover:text-emerald-800 cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+
                     {itemTransactions.length === 0 ? (
                       <p className="text-xs text-slate-400 py-4 text-center bg-slate-50 rounded-xl">
                         Belum ada mutasi masuk/keluar untuk barang ini selain saldo awal.
@@ -220,6 +237,7 @@ export const ItemDetailModal: React.FC = () => {
                               <th className="py-2 px-3">Pihak / Keterangan</th>
                               <th className="py-2 px-3 text-right">Mutasi</th>
                               <th className="py-2 px-3 text-right">Sisa Stok</th>
+                              <th className="py-2 px-3 text-center">Aksi</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100">
@@ -242,11 +260,11 @@ export const ItemDetailModal: React.FC = () => {
                                   </span>
                                 </td>
                                 <td className="py-2 px-3 text-slate-700">
-                                  <div className="font-medium truncate max-w-[180px]">
+                                  <div className="font-medium truncate max-w-[160px]">
                                     {trx.sourceOrDestination}
                                   </div>
                                   {trx.notes && (
-                                    <div className="text-[10px] text-slate-400 truncate max-w-[180px]">
+                                    <div className="text-[10px] text-slate-400 truncate max-w-[160px]">
                                       {trx.notes}
                                     </div>
                                   )}
@@ -267,6 +285,50 @@ export const ItemDetailModal: React.FC = () => {
                                 </td>
                                 <td className="py-2 px-3 text-right font-extrabold text-slate-900 whitespace-nowrap">
                                   {trx.stockAfter} {trx.unit}
+                                </td>
+                                <td className="py-2 px-3 text-center whitespace-nowrap">
+                                  {trx.type === 'KELUAR' ? (
+                                    confirmCancelTxId === trx.id ? (
+                                      <div className="inline-flex items-center gap-1">
+                                        <button
+                                          disabled={cancelingTxId === trx.id}
+                                          onClick={async () => {
+                                            setCancelingTxId(trx.id);
+                                            try {
+                                              const res = await deleteTransaction(trx.id);
+                                              if (res.success) {
+                                                setRestoreNotice(res.message);
+                                              }
+                                            } finally {
+                                              setCancelingTxId(null);
+                                              setConfirmCancelTxId(null);
+                                            }
+                                          }}
+                                          className="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[10px] font-bold hover:bg-emerald-700 cursor-pointer disabled:opacity-50"
+                                        >
+                                          {cancelingTxId === trx.id ? '...' : 'Kembalikan'}
+                                        </button>
+                                        <button
+                                          disabled={cancelingTxId === trx.id}
+                                          onClick={() => setConfirmCancelTxId(null)}
+                                          className="px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 text-[10px] font-semibold hover:bg-slate-300 cursor-pointer"
+                                        >
+                                          Batal
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <button
+                                        onClick={() => setConfirmCancelTxId(trx.id)}
+                                        className="inline-flex items-center gap-1 px-1.5 py-0.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded text-[10px] font-semibold transition-colors cursor-pointer"
+                                        title="Tidak jadi diambil / Hapus & kembalikan stok ke katalog"
+                                      >
+                                        <RotateCcw className="w-3 h-3" />
+                                        <span>Kembalikan</span>
+                                      </button>
+                                    )
+                                  ) : (
+                                    <span className="text-slate-300">-</span>
+                                  )}
                                 </td>
                               </tr>
                             ))}

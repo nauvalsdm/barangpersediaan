@@ -102,7 +102,7 @@ export const PrintDocumentModal: React.FC = () => {
                   </div>
                   <div className="flex">
                     <span className="w-32 font-semibold">
-                      {isMasuk ? 'Pemasok / Sumber' : 'Unit Kerja / Pemohon'}
+                      {isMasuk ? 'Pemasok / Sumber' : 'Bagian/Bidang'}
                     </span>
                     <span>: {data.sourceOrDestination}</span>
                   </div>

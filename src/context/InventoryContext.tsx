@@ -320,6 +320,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isMasterSettingsOpen, setIsMasterSettingsOpen] = useState(false);
   const [printDoc, setPrintDoc] = useState<PrintDocumentPayload | null>(null);
+  const deletingTxIdsRef = useRef<Set<string>>(new Set());
 
   // Sync to localStorage as fast offline cache
   useEffect(() => {
@@ -1192,24 +1193,148 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
-  // 6. Delete individual stock transaction
+  // 6. Delete / Cancel individual stock transaction
+  //    For KELUAR transactions (barang keluar yang tidak jadi diambil / dihapus),
+  //    automatically restore the quantity back into the item catalog (and Firebase Firestore).
   const deleteTransaction = async (id: string): Promise<{ success: boolean; message: string }> => {
-    if (!isAdmin) {
-      return { success: false, message: 'Hanya Administrator yang berwenang menghapus transaksi.' };
+    if (deletingTxIdsRef.current.has(id)) {
+      return { success: false, message: 'Proses pembatalan/penghapusan sedang berlangsung...' };
     }
+
     const target = transactions.find((t) => t.id === id);
-    const remaining = transactions.filter((t) => t.id !== id);
-    setTransactions(remaining);
-    localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(remaining));
+    if (!target) {
+      return { success: false, message: 'Transaksi tidak ditemukan.' };
+    }
+
+    if (target.type !== 'KELUAR' && !isAdmin) {
+      return { success: false, message: 'Hanya Administrator yang berwenang menghapus transaksi ini.' };
+    }
+    if (target.type === 'KELUAR' && !isAdmin && !isPPNPN) {
+      return { success: false, message: 'Anda tidak memiliki wewenang untuk membatalkan transaksi barang keluar.' };
+    }
+
+    deletingTxIdsRef.current.add(id);
+
     try {
-      await deleteDoc(doc(db, 'transactions', id));
-      return {
-        success: true,
-        message: `Transaksi ${target?.referenceNo || id} berhasil dihapus permanen.`,
-      };
-    } catch (err) {
-      handleFirestoreError(err, OperationType.DELETE, `transactions/${id}`);
-      return { success: true, message: 'Transaksi berhasil dihapus dari sistem.' };
+      if (target.type === 'KELUAR') {
+        const qtyToRestore = Math.max(0, Number(target.quantity) || 0);
+        const now = new Date().toISOString();
+
+        const matchedLocalItem =
+          items.find((i) => i.id === target.itemId) ||
+          items.find(
+            (i) =>
+              Boolean(target.itemSku) &&
+              i.sku.trim().toLowerCase() === target.itemSku.trim().toLowerCase()
+          );
+
+        const isValidTargetId =
+          Boolean(target.itemId) && /^[a-zA-Z0-9_-]{1,128}$/.test(target.itemId);
+        const candidateItemId = matchedLocalItem
+          ? matchedLocalItem.id
+          : isValidTargetId
+          ? target.itemId
+          : `item-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+        let itemExistedInCatalog = Boolean(matchedLocalItem);
+        let restoredItem: InventoryItem;
+
+        try {
+          const itemRef = doc(db, 'items', candidateItemId);
+          const itemSnap = await getDoc(itemRef);
+
+          if (itemSnap.exists()) {
+            itemExistedInCatalog = true;
+            const dbItem = itemSnap.data() as InventoryItem;
+            restoredItem = {
+              id: dbItem.id,
+              sku: dbItem.sku,
+              name: dbItem.name,
+              category: dbItem.category,
+              unit: dbItem.unit,
+              stock: Math.max(0, Number(dbItem.stock) || 0) + qtyToRestore,
+              minStock: Math.max(0, Number(dbItem.minStock) || 0),
+              unitPrice: Math.max(0, Number(dbItem.unitPrice) || 0),
+              ...(dbItem.supplier ? { supplier: dbItem.supplier } : {}),
+              ...(dbItem.description ? { description: dbItem.description } : {}),
+              createdAt: dbItem.createdAt,
+              updatedAt: now,
+            };
+          } else {
+            restoredItem = {
+              id: candidateItemId,
+              sku: (matchedLocalItem?.sku || target.itemSku || `BRG-${Date.now()}`).slice(0, 64),
+              name: (matchedLocalItem?.name || target.itemName || 'Barang Persediaan').slice(0, 200),
+              category: (matchedLocalItem?.category || categories[0] || 'Lain-lain').slice(0, 100),
+              unit: (matchedLocalItem?.unit || target.unit || 'Pcs').slice(0, 50),
+              stock:
+                (matchedLocalItem ? Math.max(0, Number(matchedLocalItem.stock) || 0) : 0) +
+                qtyToRestore,
+              minStock: Math.max(0, Number(matchedLocalItem?.minStock) || 0),
+              unitPrice: Math.max(0, Number(matchedLocalItem?.unitPrice ?? target.unitPrice) || 0),
+              ...(matchedLocalItem?.supplier
+                ? { supplier: matchedLocalItem.supplier.slice(0, 200) }
+                : {}),
+              ...(matchedLocalItem?.description
+                ? { description: matchedLocalItem.description.slice(0, 500) }
+                : {}),
+              createdAt: now,
+              updatedAt: now,
+            };
+          }
+
+          const batch = writeBatch(db);
+          batch.delete(doc(db, 'transactions', id));
+          batch.set(itemRef, sanitizeForFirestore(restoredItem));
+          await batch.commit();
+        } catch (err) {
+          handleFirestoreError(err, OperationType.WRITE, `transactions/${id}`);
+          return {
+            success: false,
+            message: 'Gagal menyinkronkan pengembalian stok ke Firebase Firestore.',
+          };
+        }
+
+        const remaining = transactions.filter((t) => t.id !== id);
+        setTransactions(remaining);
+        localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(remaining));
+
+        setItems((prev) => {
+          const existsInState = prev.some((i) => i.id === restoredItem.id);
+          const nextItems = existsInState
+            ? prev.map((i) => (i.id === restoredItem.id ? restoredItem : i))
+            : [restoredItem, ...prev];
+          localStorage.setItem(STORAGE_KEYS.ITEMS, JSON.stringify(nextItems));
+          return nextItems;
+        });
+
+        if (selectedItemForDetail?.id === restoredItem.id) {
+          setSelectedItemForDetail(restoredItem);
+        }
+
+        return {
+          success: true,
+          message: itemExistedInCatalog
+            ? `Barang keluar ${target.referenceNo} dibatalkan/dihapus. Stok ${restoredItem.name} (+${qtyToRestore} ${restoredItem.unit}) otomatis dikembalikan ke Katalog Barang Persediaan (Stok kini: ${restoredItem.stock} ${restoredItem.unit}).`
+            : `Barang keluar ${target.referenceNo} dibatalkan/dihapus. ${restoredItem.name} (${qtyToRestore} ${restoredItem.unit}) berhasil dikembalikan ke Katalog Barang Persediaan.`,
+        };
+      }
+
+      const remaining = transactions.filter((t) => t.id !== id);
+      setTransactions(remaining);
+      localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(remaining));
+      try {
+        await deleteDoc(doc(db, 'transactions', id));
+        return {
+          success: true,
+          message: `Transaksi ${target.referenceNo} berhasil dihapus permanen.`,
+        };
+      } catch (err) {
+        handleFirestoreError(err, OperationType.DELETE, `transactions/${id}`);
+        return { success: true, message: 'Transaksi berhasil dihapus dari sistem.' };
+      }
+    } finally {
+      deletingTxIdsRef.current.delete(id);
     }
   };
 
@@ -1378,7 +1503,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       'Satuan',
       'Harga Satuan (Rp)',
       'Total Nilai (Rp)',
-      'Asal / Tujuan (Divisi/Pemasok)',
+      'Asal / Tujuan (Bagian/Bidang/Pemasok)',
       'Penanggung Jawab',
       'Stok Sebelum',
       'Stok Sesudah',

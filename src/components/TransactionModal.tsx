@@ -15,16 +15,6 @@ import {
 import { useInventory } from '../context/InventoryContext';
 import { formatRupiah, formatNumber } from '../utils/formatters';
 
-const DEFAULT_DEPARTMENTS = [
-  'Divisi Keuangan & Akuntansi',
-  'Divisi SDM / HRD',
-  'Divisi Teknologi Informasi (IT)',
-  'Divisi Operasional & Umum',
-  'Divisi Pemasaran & Humas',
-  'Pantry & Hospitality',
-  'Direksi & Manajemen',
-];
-
 export const TransactionModal: React.FC = () => {
   const {
     transactionModalState,
@@ -63,7 +53,7 @@ export const TransactionModal: React.FC = () => {
         setUnitPrice(defaultItem.unitPrice);
       }
       setQuantity(1);
-      setSourceOrDestination(isMasuk ? (defaultItem?.supplier || '') : DEFAULT_DEPARTMENTS[0]);
+      setSourceOrDestination(isMasuk ? (defaultItem?.supplier || '') : '');
       // Default PIC/Officer based on role
       setRecipientOrSignee('');
       setNotes('');
@@ -114,7 +104,7 @@ export const TransactionModal: React.FC = () => {
       setError(
         isMasuk
           ? 'Nama supplier/pemasok wajib diisi.'
-          : 'Divisi atau peruntukan barang wajib diisi.'
+          : 'Bagian/Bidang atau peruntukan barang wajib diisi.'
       );
       return;
     }
@@ -187,7 +177,7 @@ export const TransactionModal: React.FC = () => {
               <p className="text-xs text-slate-500">
                 {isMasuk
                   ? 'Input barang masuk dari supplier / pengadaan baru'
-                  : 'Distribusi barang persediaan ke unit kerja / pegawai'}
+                  : 'Distribusi barang persediaan ke Bagian/Bidang'}
               </p>
             </div>
           </div>
@@ -319,7 +309,7 @@ export const TransactionModal: React.FC = () => {
           {/* Source / Destination */}
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-              {isMasuk ? 'Pemasok / Sumber Barang (Supplier / No PO)' : 'Unit Kerja / Divisi Pemohon'}{' '}
+              {isMasuk ? 'Pemasok / Sumber Barang (Supplier / No PO)' : 'Bagian/Bidang'}{' '}
               <span className="text-rose-500">*</span>
             </label>
             <input
@@ -328,26 +318,12 @@ export const TransactionModal: React.FC = () => {
               placeholder={
                 isMasuk
                   ? 'misal: PT Sinar Dunia (PO-2026/01)'
-                  : 'misal: Divisi Keuangan / Ruang Rapat 2'
+                  : 'misal: Bagian Umum'
               }
               value={sourceOrDestination}
               onChange={(e) => setSourceOrDestination(e.target.value)}
               className="w-full px-3 py-2 text-sm bg-slate-50 text-slate-900 rounded-xl border border-slate-200 focus:bg-white focus:border-blue-500 focus:outline-none"
             />
-            {!isMasuk && (
-              <div className="flex flex-wrap gap-1 mt-1.5">
-                {DEFAULT_DEPARTMENTS.slice(0, 4).map((dept) => (
-                  <button
-                    key={dept}
-                    type="button"
-                    onClick={() => setSourceOrDestination(dept)}
-                    className="text-[10px] px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md transition-colors"
-                  >
-                    {dept.replace('Divisi ', '')}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
           {/* Penanggung Jawab / Penerima */}

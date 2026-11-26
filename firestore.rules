@@ -129,8 +129,12 @@ service cloud.firestore {
       allow get: if isValidId(transactionId);
       allow list: if true;
       allow create: if isValidId(transactionId) && isValidStockTransaction(incoming()) && incoming().id == transactionId;
-      allow update: if isValidStockTransaction(incoming()) && isValidId(transactionId) && incoming().id == existing().id && incoming().createdAt == existing().createdAt &&
-        incoming().diff(existing()).affectedKeys().hasOnly(['notes', 'sourceOrDestination', 'recipientOrSignee']);
+      allow update: if isValidStockTransaction(incoming()) && isValidId(transactionId) &&
+        incoming().id == existing().id &&
+        incoming().referenceNo == existing().referenceNo &&
+        incoming().type == existing().type &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['date', 'itemId', 'itemName', 'itemSku', 'quantity', 'unit', 'unitPrice', 'totalPrice', 'sourceOrDestination', 'recipientOrSignee', 'notes', 'stockBefore', 'stockAfter']);
       allow delete: if isValidId(transactionId);
     }
 

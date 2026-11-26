@@ -24,6 +24,7 @@ export const ItemDetailModal: React.FC = () => {
     setSelectedItemForDetail,
     transactions,
     openTransactionModal,
+    openEditTransactionModal,
     openItemForm,
     deleteItem,
     deleteTransaction,
@@ -317,14 +318,29 @@ export const ItemDetailModal: React.FC = () => {
                                         </button>
                                       </div>
                                     ) : (
-                                      <button
-                                        onClick={() => setConfirmCancelTxId(trx.id)}
-                                        className="inline-flex items-center gap-1 px-1.5 py-0.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded text-[10px] font-semibold transition-colors cursor-pointer"
-                                        title="Tidak jadi diambil / Hapus & kembalikan stok ke katalog"
-                                      >
-                                        <RotateCcw className="w-3 h-3" />
-                                        <span>Kembalikan</span>
-                                      </button>
+                                      <div className="inline-flex items-center gap-1">
+                                        {isAdmin && (
+                                          <button
+                                            onClick={() => {
+                                              setSelectedItemForDetail(null);
+                                              openEditTransactionModal(trx);
+                                            }}
+                                            className="inline-flex items-center gap-1 px-1.5 py-0.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded text-[10px] font-semibold transition-colors cursor-pointer"
+                                            title="Ubah / Edit Data Barang Keluar"
+                                          >
+                                            <Edit className="w-3 h-3" />
+                                            <span>Ubah</span>
+                                          </button>
+                                        )}
+                                        <button
+                                          onClick={() => setConfirmCancelTxId(trx.id)}
+                                          className="inline-flex items-center gap-1 px-1.5 py-0.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded text-[10px] font-semibold transition-colors cursor-pointer"
+                                          title="Tidak jadi diambil / Hapus & kembalikan stok ke katalog"
+                                        >
+                                          <RotateCcw className="w-3 h-3" />
+                                          <span>Kembalikan</span>
+                                        </button>
+                                      </div>
                                     )
                                   ) : (
                                     <span className="text-slate-300">-</span>

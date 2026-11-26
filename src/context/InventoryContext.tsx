@@ -84,9 +84,23 @@ interface InventoryContextType {
   // Modals & popups
   selectedItemForDetail: InventoryItem | null;
   setSelectedItemForDetail: (item: InventoryItem | null) => void;
-  transactionModalState: { isOpen: boolean; type: 'MASUK' | 'KELUAR'; item?: InventoryItem };
+  transactionModalState: {
+    isOpen: boolean;
+    type: 'MASUK' | 'KELUAR';
+    item?: InventoryItem;
+    transactionToEdit?: StockTransaction;
+  };
   openTransactionModal: (type: 'MASUK' | 'KELUAR', item?: InventoryItem) => void;
+  openEditTransactionModal: (trx: StockTransaction) => void;
   closeTransactionModal: () => void;
+  transactionNotice: {
+    type: 'success' | 'error';
+    message: string;
+    restoredToCatalog?: boolean;
+  } | null;
+  setTransactionNotice: (
+    notice: { type: 'success' | 'error'; message: string; restoredToCatalog?: boolean } | null
+  ) => void;
   itemFormState: { isOpen: boolean; itemToEdit?: InventoryItem };
   openItemForm: (itemToEdit?: InventoryItem) => void;
   closeItemForm: () => void;
@@ -123,6 +137,17 @@ interface InventoryContextType {
   ) => void;
   addCategory: (cat: string) => void;
   deleteCategory: (cat: string) => void;
+  updateStockOutTransaction: (
+    id: string,
+    updates: {
+      itemId: string;
+      quantity: number;
+      sourceOrDestination: string;
+      recipientOrSignee: string;
+      notes?: string;
+      date?: string;
+    }
+  ) => Promise<{ success: boolean; message: string; transaction?: StockTransaction }>;
   deleteTransaction: (id: string) => Promise<{ success: boolean; message: string }>;
   deleteOpname: (id: string) => Promise<{ success: boolean; message: string }>;
   clearAllModules: () => Promise<{ success: boolean; message: string }>;
@@ -313,7 +338,13 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     isOpen: boolean;
     type: 'MASUK' | 'KELUAR';
     item?: InventoryItem;
+    transactionToEdit?: StockTransaction;
   }>({ isOpen: false, type: 'MASUK' });
+  const [transactionNotice, setTransactionNotice] = useState<{
+    type: 'success' | 'error';
+    message: string;
+    restoredToCatalog?: boolean;
+  } | null>(null);
   const [itemFormState, setItemFormState] = useState<{ isOpen: boolean; itemToEdit?: InventoryItem }>({
     isOpen: false,
   });
@@ -321,6 +352,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isMasterSettingsOpen, setIsMasterSettingsOpen] = useState(false);
   const [printDoc, setPrintDoc] = useState<PrintDocumentPayload | null>(null);
   const deletingTxIdsRef = useRef<Set<string>>(new Set());
+  const editingTxIdsRef = useRef<Set<string>>(new Set());
 
   // Sync to localStorage as fast offline cache
   useEffect(() => {
@@ -755,14 +787,25 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Modal handlers
   const openTransactionModal = (type: 'MASUK' | 'KELUAR', item?: InventoryItem) => {
     if (isPPNPN && type === 'MASUK') {
-      setTransactionModalState({ isOpen: true, type: 'KELUAR', item });
+      setTransactionModalState({ isOpen: true, type: 'KELUAR', item, transactionToEdit: undefined });
       return;
     }
-    setTransactionModalState({ isOpen: true, type, item });
+    setTransactionModalState({ isOpen: true, type, item, transactionToEdit: undefined });
+  };
+
+  const openEditTransactionModal = (trx: StockTransaction) => {
+    if (!isAdmin || trx.type !== 'KELUAR') return;
+    const matchedItem = items.find((i) => i.id === trx.itemId);
+    setTransactionModalState({
+      isOpen: true,
+      type: 'KELUAR',
+      item: matchedItem,
+      transactionToEdit: trx,
+    });
   };
 
   const closeTransactionModal = () => {
-    setTransactionModalState({ isOpen: false, type: 'MASUK' });
+    setTransactionModalState({ isOpen: false, type: 'MASUK', transactionToEdit: undefined });
   };
 
   const openItemForm = (itemToEdit?: InventoryItem) => {
@@ -1338,6 +1381,339 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
+  // 6b. Update / Edit Barang Keluar transaction (Admin only)
+  //     Atomically updates transaction and adjusts affected item stock(s) in Firebase Firestore.
+  const updateStockOutTransaction = async (
+    id: string,
+    updates: {
+      itemId: string;
+      quantity: number;
+      sourceOrDestination: string;
+      recipientOrSignee: string;
+      notes?: string;
+      date?: string;
+    }
+  ): Promise<{ success: boolean; message: string; transaction?: StockTransaction }> => {
+    if (!isAdmin) {
+      return {
+        success: false,
+        message: 'Hanya Administrator yang berwenang mengubah data Barang Keluar.',
+      };
+    }
+
+    if (editingTxIdsRef.current.has(id)) {
+      return { success: false, message: 'Proses penyimpanan perubahan sedang berlangsung...' };
+    }
+
+    const oldTrx = transactions.find((t) => t.id === id);
+    if (!oldTrx || oldTrx.type !== 'KELUAR') {
+      return { success: false, message: 'Transaksi Barang Keluar tidak ditemukan.' };
+    }
+
+    const newQty = Math.floor(Number(updates.quantity) || 0);
+    if (newQty <= 0) {
+      return { success: false, message: 'Jumlah barang keluar harus lebih besar dari 0.' };
+    }
+
+    const cleanDest = updates.sourceOrDestination.trim();
+    const cleanRecipient = updates.recipientOrSignee.trim();
+    const cleanNotes = (updates.notes || '').trim();
+    if (!cleanDest) {
+      return { success: false, message: 'Bagian/Bidang wajib diisi.' };
+    }
+    if (!cleanRecipient) {
+      return { success: false, message: 'Nama Pegawai Peminta / Penerima wajib diisi.' };
+    }
+
+    editingTxIdsRef.current.add(id);
+
+    try {
+      const now = new Date().toISOString();
+      const oldQty = Math.max(0, Number(oldTrx.quantity) || 0);
+      const newDate = updates.date ? new Date(updates.date).toISOString() : oldTrx.date;
+
+      const matchedOldLocalItem =
+        items.find((i) => i.id === oldTrx.itemId) ||
+        items.find(
+          (i) =>
+            Boolean(oldTrx.itemSku) &&
+            i.sku.trim().toLowerCase() === oldTrx.itemSku.trim().toLowerCase()
+        );
+
+      const validOldId =
+        Boolean(oldTrx.itemId) && /^[a-zA-Z0-9_-]{1,128}$/.test(oldTrx.itemId)
+          ? oldTrx.itemId
+          : `item-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      const resolvedOldItemId = matchedOldLocalItem ? matchedOldLocalItem.id : validOldId;
+      const isSameItem = updates.itemId === resolvedOldItemId || updates.itemId === oldTrx.itemId;
+
+      const updatedItemsMap = new Map<string, InventoryItem>();
+      let updatedTrx: StockTransaction;
+      let stockNote = '';
+
+      try {
+        const batch = writeBatch(db);
+
+        if (isSameItem) {
+          const itemRef = doc(db, 'items', resolvedOldItemId);
+          const itemSnap = await getDoc(itemRef);
+          const qtyChanged = newQty !== oldQty;
+
+          if (itemSnap.exists()) {
+            const dbItem = itemSnap.data() as InventoryItem;
+            const currentDbStock = Math.max(0, Number(dbItem.stock) || 0);
+            const availableStock = currentDbStock + oldQty;
+
+            if (newQty > availableStock) {
+              return {
+                success: false,
+                message: `Stok tidak mencukupi! Maksimal jumlah keluar untuk ${dbItem.name} adalah ${availableStock} ${dbItem.unit} (stok katalog ${currentDbStock} + keluar sebelumnya ${oldQty}).`,
+              };
+            }
+
+            const newItemStock = availableStock - newQty;
+            const unitPrice = Math.max(0, Number(oldTrx.unitPrice ?? dbItem.unitPrice) || 0);
+
+            updatedTrx = {
+              id: oldTrx.id,
+              referenceNo: oldTrx.referenceNo,
+              date: newDate,
+              type: 'KELUAR',
+              itemId: dbItem.id,
+              itemName: dbItem.name.slice(0, 200),
+              itemSku: dbItem.sku.slice(0, 64),
+              quantity: newQty,
+              unit: dbItem.unit.slice(0, 50),
+              unitPrice,
+              totalPrice: newQty * unitPrice,
+              sourceOrDestination: cleanDest.slice(0, 200),
+              recipientOrSignee: cleanRecipient.slice(0, 200),
+              ...(cleanNotes ? { notes: cleanNotes.slice(0, 500) } : {}),
+              stockBefore: qtyChanged ? availableStock : oldTrx.stockBefore,
+              stockAfter: qtyChanged ? newItemStock : oldTrx.stockAfter,
+              createdAt: oldTrx.createdAt,
+            };
+
+            batch.set(doc(db, 'transactions', oldTrx.id), sanitizeForFirestore(updatedTrx));
+
+            if (qtyChanged) {
+              const nextItem: InventoryItem = {
+                id: dbItem.id,
+                sku: dbItem.sku,
+                name: dbItem.name,
+                category: dbItem.category,
+                unit: dbItem.unit,
+                stock: newItemStock,
+                minStock: Math.max(0, Number(dbItem.minStock) || 0),
+                unitPrice: Math.max(0, Number(dbItem.unitPrice) || 0),
+                ...(dbItem.supplier ? { supplier: dbItem.supplier } : {}),
+                ...(dbItem.description ? { description: dbItem.description } : {}),
+                createdAt: dbItem.createdAt,
+                updatedAt: now,
+              };
+              batch.set(itemRef, sanitizeForFirestore(nextItem));
+              updatedItemsMap.set(nextItem.id, nextItem);
+              stockNote = ` Stok ${nextItem.name} disesuaikan menjadi ${nextItem.stock} ${nextItem.unit}.`;
+            }
+          } else {
+            // Original item no longer exists in Firestore catalog
+            if (newQty > oldQty) {
+              return {
+                success: false,
+                message: `Barang asal sudah tidak tersedia di katalog. Jumlah keluar tidak dapat melebihi ${oldQty} ${oldTrx.unit}.`,
+              };
+            }
+
+            const returnedQty = oldQty - newQty;
+            const unitPrice = Math.max(0, Number(oldTrx.unitPrice) || 0);
+
+            updatedTrx = {
+              id: oldTrx.id,
+              referenceNo: oldTrx.referenceNo,
+              date: newDate,
+              type: 'KELUAR',
+              itemId: resolvedOldItemId,
+              itemName: oldTrx.itemName.slice(0, 200),
+              itemSku: oldTrx.itemSku.slice(0, 64),
+              quantity: newQty,
+              unit: oldTrx.unit.slice(0, 50),
+              unitPrice,
+              totalPrice: newQty * unitPrice,
+              sourceOrDestination: cleanDest.slice(0, 200),
+              recipientOrSignee: cleanRecipient.slice(0, 200),
+              ...(cleanNotes ? { notes: cleanNotes.slice(0, 500) } : {}),
+              stockBefore: qtyChanged ? oldQty : oldTrx.stockBefore,
+              stockAfter: qtyChanged ? returnedQty : oldTrx.stockAfter,
+              createdAt: oldTrx.createdAt,
+            };
+
+            batch.set(doc(db, 'transactions', oldTrx.id), sanitizeForFirestore(updatedTrx));
+
+            if (returnedQty > 0) {
+              const recreatedItem: InventoryItem = {
+                id: resolvedOldItemId,
+                sku: (oldTrx.itemSku || `BRG-${Date.now()}`).slice(0, 64),
+                name: (oldTrx.itemName || 'Barang Persediaan').slice(0, 200),
+                category: (categories[0] || 'Lain-lain').slice(0, 100),
+                unit: (oldTrx.unit || 'Pcs').slice(0, 50),
+                stock: returnedQty,
+                minStock: 0,
+                unitPrice,
+                createdAt: now,
+                updatedAt: now,
+              };
+              batch.set(itemRef, sanitizeForFirestore(recreatedItem));
+              updatedItemsMap.set(recreatedItem.id, recreatedItem);
+              stockNote = ` Selisih +${returnedQty} ${recreatedItem.unit} dikembalikan ke Katalog Barang.`;
+            }
+          }
+        } else {
+          // Switched to a DIFFERENT item:
+          // 1. Validate & deduct from new item
+          const newItemRef = doc(db, 'items', updates.itemId);
+          const newItemSnap = await getDoc(newItemRef);
+          if (!newItemSnap.exists()) {
+            return { success: false, message: 'Barang pengganti tidak ditemukan di katalog.' };
+          }
+          const newDbItem = newItemSnap.data() as InventoryItem;
+          const newDbStock = Math.max(0, Number(newDbItem.stock) || 0);
+          if (newQty > newDbStock) {
+            return {
+              success: false,
+              message: `Stok ${newDbItem.name} tidak mencukupi! Tersedia hanya ${newDbStock} ${newDbItem.unit}, diminta ${newQty} ${newDbItem.unit}.`,
+            };
+          }
+
+          // 2. Restore oldQty back to old item (or recreate into catalog if deleted)
+          const oldItemRef = doc(db, 'items', resolvedOldItemId);
+          const oldItemSnap = await getDoc(oldItemRef);
+          let restoredOldItem: InventoryItem;
+          if (oldItemSnap.exists()) {
+            const oldDbItem = oldItemSnap.data() as InventoryItem;
+            restoredOldItem = {
+              id: oldDbItem.id,
+              sku: oldDbItem.sku,
+              name: oldDbItem.name,
+              category: oldDbItem.category,
+              unit: oldDbItem.unit,
+              stock: Math.max(0, Number(oldDbItem.stock) || 0) + oldQty,
+              minStock: Math.max(0, Number(oldDbItem.minStock) || 0),
+              unitPrice: Math.max(0, Number(oldDbItem.unitPrice) || 0),
+              ...(oldDbItem.supplier ? { supplier: oldDbItem.supplier } : {}),
+              ...(oldDbItem.description ? { description: oldDbItem.description } : {}),
+              createdAt: oldDbItem.createdAt,
+              updatedAt: now,
+            };
+          } else {
+            restoredOldItem = {
+              id: resolvedOldItemId,
+              sku: (oldTrx.itemSku || `BRG-${Date.now()}`).slice(0, 64),
+              name: (oldTrx.itemName || 'Barang Persediaan').slice(0, 200),
+              category: (categories[0] || 'Lain-lain').slice(0, 100),
+              unit: (oldTrx.unit || 'Pcs').slice(0, 50),
+              stock: oldQty,
+              minStock: 0,
+              unitPrice: Math.max(0, Number(oldTrx.unitPrice) || 0),
+              createdAt: now,
+              updatedAt: now,
+            };
+          }
+
+          const updatedNewItem: InventoryItem = {
+            id: newDbItem.id,
+            sku: newDbItem.sku,
+            name: newDbItem.name,
+            category: newDbItem.category,
+            unit: newDbItem.unit,
+            stock: newDbStock - newQty,
+            minStock: Math.max(0, Number(newDbItem.minStock) || 0),
+            unitPrice: Math.max(0, Number(newDbItem.unitPrice) || 0),
+            ...(newDbItem.supplier ? { supplier: newDbItem.supplier } : {}),
+            ...(newDbItem.description ? { description: newDbItem.description } : {}),
+            createdAt: newDbItem.createdAt,
+            updatedAt: now,
+          };
+
+          const newUnitPrice = Math.max(0, Number(newDbItem.unitPrice) || 0);
+          updatedTrx = {
+            id: oldTrx.id,
+            referenceNo: oldTrx.referenceNo,
+            date: newDate,
+            type: 'KELUAR',
+            itemId: newDbItem.id,
+            itemName: newDbItem.name.slice(0, 200),
+            itemSku: newDbItem.sku.slice(0, 64),
+            quantity: newQty,
+            unit: newDbItem.unit.slice(0, 50),
+            unitPrice: newUnitPrice,
+            totalPrice: newQty * newUnitPrice,
+            sourceOrDestination: cleanDest.slice(0, 200),
+            recipientOrSignee: cleanRecipient.slice(0, 200),
+            ...(cleanNotes ? { notes: cleanNotes.slice(0, 500) } : {}),
+            stockBefore: newDbStock,
+            stockAfter: updatedNewItem.stock,
+            createdAt: oldTrx.createdAt,
+          };
+
+          batch.set(oldItemRef, sanitizeForFirestore(restoredOldItem));
+          batch.set(newItemRef, sanitizeForFirestore(updatedNewItem));
+          batch.set(doc(db, 'transactions', oldTrx.id), sanitizeForFirestore(updatedTrx));
+          updatedItemsMap.set(restoredOldItem.id, restoredOldItem);
+          updatedItemsMap.set(updatedNewItem.id, updatedNewItem);
+          stockNote = ` Stok ${restoredOldItem.name} (+${oldQty}) dikembalikan & stok ${updatedNewItem.name} kini ${updatedNewItem.stock} ${updatedNewItem.unit}.`;
+        }
+
+        await batch.commit();
+      } catch (err) {
+        handleFirestoreError(err, OperationType.UPDATE, `transactions/${id}`);
+        return {
+          success: false,
+          message: 'Gagal menyimpan perubahan transaksi ke Firebase Firestore.',
+        };
+      }
+
+      // Sync local state & localStorage
+      setTransactions((prev) => {
+        const next = prev.map((t) => (t.id === updatedTrx.id ? updatedTrx : t));
+        localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(next));
+        return next;
+      });
+
+      if (updatedItemsMap.size > 0) {
+        setItems((prev) => {
+          const existingIds = new Set(prev.map((i) => i.id));
+          let next = prev.map((i) => updatedItemsMap.get(i.id) || i);
+          updatedItemsMap.forEach((itemObj, itemId) => {
+            if (!existingIds.has(itemId)) {
+              next = [itemObj, ...next];
+            }
+          });
+          localStorage.setItem(STORAGE_KEYS.ITEMS, JSON.stringify(next));
+          return next;
+        });
+
+        if (selectedItemForDetail && updatedItemsMap.has(selectedItemForDetail.id)) {
+          setSelectedItemForDetail(updatedItemsMap.get(selectedItemForDetail.id) || null);
+        }
+      }
+
+      const msg = `Transaksi Barang Keluar ${updatedTrx.referenceNo} berhasil diubah.${stockNote}`;
+      setTransactionNotice({
+        type: 'success',
+        message: msg,
+        restoredToCatalog: updatedItemsMap.size > 0,
+      });
+
+      return {
+        success: true,
+        message: msg,
+        transaction: updatedTrx,
+      };
+    } finally {
+      editingTxIdsRef.current.delete(id);
+    }
+  };
+
   // 7. Delete individual opname session
   const deleteOpname = async (id: string): Promise<{ success: boolean; message: string }> => {
     if (!isAdmin) {
@@ -1625,7 +2001,10 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setSelectedItemForDetail,
         transactionModalState,
         openTransactionModal,
+        openEditTransactionModal,
         closeTransactionModal,
+        transactionNotice,
+        setTransactionNotice,
         itemFormState,
         openItemForm,
         closeItemForm,
@@ -1643,6 +2022,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         saveOpname,
         addCategory,
         deleteCategory,
+        updateStockOutTransaction,
         deleteTransaction,
         deleteOpname,
         clearAllModules,
